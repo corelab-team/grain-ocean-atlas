@@ -63,8 +63,8 @@
   var cfg, colors, gcfg;
   var renderer, scene, camera, canvas;
   var pivotTilt, pivotSpin, world;      // tilt(rot.x) > spin(rot.y) > world
-  var earth, borders, highlight, atmo, halo, edge;
-  var arcGroup, shipDot, originDot;
+  var earth, borders, highlight, atmo, halo, edge, bgSphere;
+  var arcGroup, ships = [], originDot;
   var endPointsBig = null, endPointsSmall = null, particles = null;
 
   var topoFeatures = null;              // контуры стран для подсветки
@@ -77,6 +77,7 @@
   var routeByName = {};
   var routeByIso = {};                  // iso контура -> маршрут текущего года
   var selected = null;
+  var shipCount = 0, shipSpeed = 0;     // сколько корабликов идёт по маршруту и с какой скоростью
 
   // Домашний ракурс: Россия, Чёрное море, Ближний Восток, Африка, Индия.
   // fx/fy — где на экране стоит центр планеты (доли ширины и высоты).
@@ -615,7 +616,51 @@
     });
   }
 
+  /**
+   * Силуэт судна сбоку — вместо круглой точки для корабликов на маршруте.
+   * Вид сбоку узнаётся при любом развороте дуги на экране (в отличие от
+   * вида сверху, который выглядит кораблём только вдоль одной оси), а на
+   * спрайте 20 px (PX.ship) это всё ещё «лодочка с рубкой», а не пятно.
+   * Приём тот же, что в dotTexture: мягкий цветной ореол снизу — иначе
+   * маленький силуэт теряется на тёмном фоне, — и яркое ядро сверху.
+   */
+  function shipTexture(rgb) {
+    return pointTexture(rgb, function (ctx, s, c) {
+      var halo = ctx.createRadialGradient(c, c, 0, c, c, c);
+      halo.addColorStop(0, 'rgba(' + rgb + ',.5)');
+      halo.addColorStop(0.5, 'rgba(' + rgb + ',.18)');
+      halo.addColorStop(1, 'rgba(' + rgb + ',0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, s, s);
+
+      var grad = ctx.createLinearGradient(0, c - s * 0.16, 0, c + s * 0.15);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      grad.addColorStop(1, 'rgba(' + rgb + ',.95)');
+      ctx.fillStyle = grad;
+
+      // корпус: ватерлиния ровная, корма (слева) выше борта, нос (справа)
+      // скошен вниз, днище — пологая дуга. Форма и есть силуэт «лодочки».
+      ctx.beginPath();
+      ctx.moveTo(c - s * 0.30, c);
+      ctx.lineTo(c + s * 0.22, c);
+      ctx.lineTo(c + s * 0.32, c + s * 0.07);
+      ctx.quadraticCurveTo(c, c + s * 0.15, c - s * 0.34, c + s * 0.07);
+      ctx.closePath();
+      ctx.fill();
+
+      // рубка и труба — короткие блоки над кормой, по ним силуэт и
+      // читается как корабль, а не как обрезок эллипса
+      ctx.fillRect(c - s * 0.16, c - s * 0.16, s * 0.20, s * 0.16);
+      ctx.fillRect(c - s * 0.02, c - s * 0.24, s * 0.06, s * 0.10);
+    });
+  }
+
   var TEX_GOLD = null, TEX_WHITE = null, TEX_SHIP = null;
+  var SHIP_MAX = 6;                     // потолок числа корабликов на маршруте (по ТЗ 1..6)
+  // доля маршрута в мс: диапазон вокруг прежней фиксированной скорости
+  // одиночной точки (0.00016) — на минимальном объёме идёт медленнее,
+  // на максимальном быстрее.
+  var SHIP_SPEED_MIN = 0.00010, SHIP_SPEED_MAX = 0.00026;
 
   /** Самый большой вариант текстуры, который тянет видеокарта. */
   function pickTexture(list) {
@@ -860,6 +905,33 @@
     pivotSpin.add(world);
     scene.add(pivotTilt);
 
+    /*
+     * Фон раздела — не картинка за кадром, а огромная сфера со звёздным
+     * небом внутри сцены, куда попадает камера. Раньше космос лежал
+     * CSS-фоном на обёртке #sec-globe.theme-navy и был виден сквозь
+     * прозрачный canvas (renderer alpha:true) — оттого при повороте
+     * глобуса небо стояло на месте. Сфера — ребёнок world: та же группа,
+     * что вращают перетаскивание, докрутка и автопилот, поэтому звёзды
+     * уезжают вслед за глобусом, как и положено виду «из космоса».
+     * side: BackSide — видна изнанка (мы внутри сферы), depthWrite: false
+     * и renderOrder ниже всех остальных мешей — чтобы фон не мог
+     * перекрыть дуги, точки и подсветку страны при любых стечениях глубины.
+     * Только у синей темы: у зелёной свой фон (фактура card из CSS),
+     * его не трогаем — не по теме и не по духу задачи.
+     */
+    if (cfg.theme === 'navy') {
+      var BG_RADIUS = 50;               // с запасом внутри far=100 камеры, снаружи max zoom (7.5)
+      var bgMat = new THREE.MeshBasicMaterial({
+        side: THREE.BackSide, depthWrite: false,
+        // приглушаем яркость снимка серым множителем: без этого звёздная
+        // туманность спорит с золотыми дугами и подписи читаются хуже
+        color: new THREE.Color(0.38, 0.38, 0.38)
+      });
+      bgSphere = new THREE.Mesh(new THREE.SphereGeometry(BG_RADIUS, 48, 32), bgMat);
+      bgSphere.renderOrder = -1;
+      world.add(bgSphere);
+    }
+
     // общий множитель света: тема может сделать планету ярче, не трогая соседнюю
     var lk = gcfg.lightScale != null ? gcfg.lightScale : 1;
     scene.add(new THREE.AmbientLight(0xffffff, 0.85 * lk));
@@ -869,7 +941,7 @@
 
     TEX_GOLD = glowTexture('255,205,120');
     TEX_WHITE = glowTexture('255,240,214');
-    TEX_SHIP = dotTexture('255,244,224', 0.35);
+    TEX_SHIP = shipTexture('255,244,224');
 
     // ночная Земля: холодная серо-голубая суша (карта)
     // + тёпло-белые огни городов с ореолом (emissive)
@@ -881,10 +953,12 @@
       emissiveIntensity: gcfg.lightsIntensity || 1.35
     });
     var loader = new THREE.TextureLoader();
-    // Снимки Земли распаковываются долго, поэтому считаем их: когда обе
+    // Снимки Земли распаковываются долго, поэтому считаем их: когда все
     // готовы и попали в кадр, раздел докладывает onReady — по этому
-    // сигналу оболочка гасит цикл у раздела, поднятого в фоне.
-    texLeft = 2;
+    // сигналу оболочка гасит цикл у раздела, поднятого в фоне. Фон-космос
+    // считаем тем же способом: иначе на долю кадра успеет мелькнуть серая
+    // непрозрачная заливка без звёзд.
+    texLeft = bgSphere ? 3 : 2;
     function texDone() {
       if (--texLeft > 0) return;
       // ещё кадр, чтобы текстуры успели уехать в видеопамять
@@ -898,6 +972,20 @@
     loader.load(U.asset(pickTexture(lightSet)), function (t) {
       earthMat.emissiveMap = prepTexture(t); earthMat.needsUpdate = true; texDone();
     }, null, texDone);
+    // Снимок космоса от заказчика (1920x1080, сжат из assets/concept/src/
+    // globe-space-bg.webp) — путь пишем буквально, а не собираем из имени
+    // темы: tools/build_dist.py ищет ссылки на assets/ прямо в тексте кода.
+    if (bgSphere) {
+      loader.load(U.asset('assets/textures/bg_space.webp'), function (t) {
+        if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace;
+        t.generateMipmaps = false;
+        t.minFilter = THREE.LinearFilter;
+        t.magFilter = THREE.LinearFilter;
+        bgSphere.material.map = t;
+        bgSphere.material.needsUpdate = true;
+        texDone();
+      }, null, texDone);
+    }
     // сегментов много: вблизи на гранёном шаре виден многоугольный край диска
     earth = new THREE.Mesh(new THREE.SphereGeometry(R, 160, 96), earthMat);
     world.add(earth);
@@ -976,13 +1064,21 @@
     originDot.position.copy(toVec3(o.lat, o.lon, R * 1.004));
     world.add(originDot);
 
-    // «корабль» — светящаяся точка, бегущая по выбранному маршруту
-    shipDot = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: TEX_SHIP, transparent: true, sizeAttenuation: false,
-      blending: THREE.AdditiveBlending, depthWrite: false
-    }));
-    shipDot.visible = false;
-    world.add(shipDot);
+    // «корабли» — силуэты судов, бегущие друг за другом по выбранному
+    // маршруту. Спрайтов заводим сразу SHIP_MAX штук и просто прячем
+    // лишние (см. setSelected) — так же, как с фиксированным числом
+    // конечных точек: создавать/удалять объекты сцены на каждый клик
+    // по стране дороже, чем один раз переключить visible.
+    ships = [];
+    for (var si = 0; si < SHIP_MAX; si++) {
+      var sh = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: TEX_SHIP, transparent: true, sizeAttenuation: false,
+        blending: THREE.AdditiveBlending, depthWrite: false
+      }));
+      sh.visible = false;
+      world.add(sh);
+      ships.push(sh);
+    }
 
     initLabels();
     bindPointer();
@@ -1031,7 +1127,7 @@
     // мировая длина, дающая один пиксель по вертикали на расстоянии 1 от камеры
     uPxK.value = 2 * Math.tan(camera.fov * DEG / 2) / h;
     if (originDot) originDot.scale.setScalar(PX.origin * DOT_SCALE * uPxK.value);
-    if (shipDot) shipDot.scale.setScalar(PX.ship * uPxK.value);
+    for (var si = 0; si < ships.length; si++) ships[si].scale.setScalar(PX.ship * uPxK.value);
   }
 
   function applyViewOffset() {
@@ -1398,7 +1494,8 @@
   function setRoutes(items, animate) {
     disposeRoutes();
     selected = null;
-    shipDot.visible = false;
+    shipCount = 0;
+    for (var si = 0; si < ships.length; si++) ships[si].visible = false;
     drawHighlight(null);
 
     var origin = toVec3(cfg.origin.lat, cfg.origin.lon, R);
@@ -1538,9 +1635,18 @@
     if (endPointsBig) endPointsBig.material.opacity = 0.95 * dim;
     if (endPointsSmall) endPointsSmall.material.opacity = 0.75 * dim;
     if (particles) particles.material.opacity = 0.9 * (selected ? 0.3 : 1);
-    shipDot.visible = !!selected;
 
     var r = selected ? routeByName[selected] : null;
+    // сколько корабликов идёт по маршруту и с какой скоростью — по объёму
+    // экспорта в эту страну за выбранный год: r.norm уже посчитан в
+    // setRoutes на лог-шкале 0..1 относительно всех стран текущего года
+    // (тем же числом подписан цвет и толщина дуги). Больше объём — больше
+    // судов и идут они быстрее; потолок SHIP_MAX не даёт маршруту
+    // превратиться в сплошную линию при самом большом объёме.
+    shipCount = r ? U.clamp(Math.round(1 + r.norm * (SHIP_MAX - 1)), 1, SHIP_MAX) : 0;
+    shipSpeed = r ? SHIP_SPEED_MIN + (SHIP_SPEED_MAX - SHIP_SPEED_MIN) * r.norm : 0;
+    for (var si = 0; si < ships.length; si++) ships[si].visible = si < shipCount;
+
     drawHighlight(r ? r.iso : null);
     if (r) {
       setLabelText(selLabel, r.name,
@@ -1925,8 +2031,14 @@
       particles.geometry.attributes.position.needsUpdate = true;
     }
 
-    if (selected && routeByName[selected]) {
-      shipDot.position.copy(pointAt(routeByName[selected], (now * 0.00016) % 1, partVec));
+    if (selected && routeByName[selected] && shipCount > 0) {
+      var rSel = routeByName[selected];
+      // идут друг за другом с равным интервалом: у каждого свой сдвиг
+      // фазы si/shipCount по той же дуге и с одной на всех скоростью
+      for (var si = 0; si < shipCount; si++) {
+        var f = (now * shipSpeed + si / shipCount) % 1;
+        ships[si].position.copy(pointAt(rSel, f, partVec));
+      }
     }
 
     renderer.render(scene, camera);
@@ -2050,11 +2162,12 @@
         land: earth.material.map && earth.material.map.image
           ? earth.material.map.image.width : 0,
         borderSegs: borders.geometry.attributes.position.count / 6,
-        ship: shipDot.visible ? (function () {
-          var v = shipDot.position.clone().applyMatrix4(world.matrixWorld).project(camera);
+        // отладка: экранные координаты всех видимых сейчас корабликов
+        ships: shipCount > 0 ? ships.slice(0, shipCount).map(function (s) {
+          var v = s.position.clone().applyMatrix4(world.matrixWorld).project(camera);
           return [Math.round((v.x * 0.5 + 0.5) * (canvas.clientWidth || 1920)),
             Math.round((-v.y * 0.5 + 0.5) * (canvas.clientHeight || 1080))];
-        })() : null
+        }) : null
       };
     }
   };

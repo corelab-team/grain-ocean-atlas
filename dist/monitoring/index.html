@@ -6548,6 +6548,8 @@ body.mon-screen { background: #141d23; }
   var MAP_W = 1888, MAP_H = 1048;      // холст во всю карточку кадра (1920x1080 минус 16 по краям)
   var ZOOM_MAX = 3.6, ZOOM_STEP = 1.45;
   var TAP_SLOP = 7;                    // сколько пикселей можно проехать, чтобы это был тап
+  var WHEEL_ZOOM_SENS = 0.0015;        // сила зума колесом на единицу deltaY, подобрана опытным путём
+  var WHEEL_LINE_PX = 16;              // во сколько px переводим «строчный» шаг колеса (deltaMode === 1)
 
   /* Куда вписывается страна: [x0, y0, x1, y1] в координатах кадра.
      На карте госмониторинга слева колонка панелей, на регионах
@@ -7972,6 +7974,29 @@ body.mon-screen { background: #141d23; }
 
     c.addEventListener('pointerup', release);
     c.addEventListener('pointercancel', release);
+
+    // колесо мыши: тот же приём, что и в щипке — точка мира под курсором
+    // остаётся под курсором, только жест один, без второго пальца.
+    // preventDefault нужен, чтобы страница за карточкой не проскроллилась.
+    c.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      resetIdle();
+      anim = null;
+      setHover(null);
+      var p = local(e);
+      var k = view.k0 * view.z;
+      var wx = view.cx + (p[0] - view.ox) / k;
+      var wy = view.cy + (p[1] - view.oy) / k;
+      // строчный/страничный режим колеса переводим в пиксели, чтобы шаг
+      // не скакал между браузерами (Firefox отдаёт deltaMode line, не pixel)
+      var dy = e.deltaMode === 1 ? e.deltaY * WHEEL_LINE_PX : e.deltaY;
+      view.z = U.clamp(view.z * Math.exp(-dy * WHEEL_ZOOM_SENS), zoomMin(), ZOOM_MAX);
+      k = view.k0 * view.z;
+      view.cx = wx - (p[0] - view.ox) / k;
+      view.cy = wy - (p[1] - view.oy) / k;
+      clampView();
+      need = true;
+    }, { passive: false });
 
     $('zoom-in').addEventListener('click', function () {
       resetIdle();
