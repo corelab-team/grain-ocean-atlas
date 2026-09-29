@@ -691,8 +691,10 @@
     box.textContent = '';
     bigNum(el2(box), fmt1(bothSum('gross')), 'тыс. т',
       'общий валовой сбор мягкой и твёрдой пшеницы');
+    // слово «урожай» из подписи убрали (правка заказчика 29.09): просят,
+    // чтобы мониторинг читался сам по себе за год, без отсылки к урожаю
     bigNum(el2(box), fmt1(bothSum('surveyed')), 'тыс. т',
-      'обследовано зерна урожая ' + year);
+      'обследовано зерна за ' + year + ' год');
     bigNum($('gost-body'), dec1(bothCompliance()), '%',
       'соответствует требованиям ГОСТ');
   }
@@ -890,8 +892,27 @@
 
   /* ------------------------------ экран региона ------------------------------ */
 
-  function kindLabel() {
-    return kind === 'durum' ? 'Твёрдая пшеница' : 'Мягкая пшеница';
+  /** Кнопки «Мягкая пшеница / Твёрдая пшеница» в подписи региона: вид
+      пшеницы общий на весь раздел (карта, «Топ-10», карточка — см. setKind
+      и комментарий над ней), но выбирать его теперь можно и прямо тут,
+      по клику (правка заказчика 29.09, слайд 1 презентации). Вида, по
+      которому у региона в этом году нет цифр, кнопка не открывает —
+      как и везде в разделе, «нет данных» не пишем, а просто гасим
+      кнопку (тот же приём, что у mn-year.is-off и card-key.is-off). */
+  function appendKindButtons(box, id) {
+    KINDS.forEach(function (k, i) {
+      if (i > 0) box.appendChild(el('span', 'mn-kind-sep', ' / '));
+      var has = !!rec(id, k.key);
+      var btn = el('button', 'mn-kind-btn' +
+        (kind === k.key ? ' is-on' : '') + (has ? '' : ' is-off'), k.label);
+      btn.type = 'button';
+      btn.disabled = !has;
+      btn.addEventListener('click', function () {
+        resetIdle();
+        setKind(k.key);
+      });
+      box.appendChild(btn);
+    });
   }
 
   /** Метки-цифры вокруг зерна: кружок и подпись над ним. */
@@ -937,12 +958,17 @@
     if (!b) { drawMarks(null); drawEmptyRegion(); return; }
     drawMarks(b);
 
-    // третью часть подписи добавляем только вместе с разделителем,
-    // чтобы при выключенном strongNote не висело « · » в конце строки
-    $('reg-sub').textContent = kindLabel() + '  ·  урожай ' + year +
-      (b.strong && strongOn() ? '  ·  регион с сильной пшеницей' : '');
+    // подпись строим из узлов, не из textContent: первая часть — кликабельные
+    // кнопки вида пшеницы, дальше год и (если есть) пометка про сильную
+    // пшеницу — как раньше, через разделитель, чтобы « · » не повисло в конце
+    var sub = $('reg-sub');
+    sub.textContent = '';
+    appendKindButtons(sub, regionId);
+    sub.appendChild(document.createTextNode('  ·  ' + year +
+      (b.strong && strongOn() ? '  ·  регион с сильной пшеницей' : '')));
 
-    bigNum($('gross-body'), fmt1(b.gross), 'тыс. т', 'Урожай ' + year);
+    // было «Урожай 2026» — то же самое слово убрали и здесь (см. выше)
+    bigNum($('gross-body'), fmt1(b.gross), 'тыс. т', String(year) + ' год');
     bigNum($('surv-body'), fmt1(b.surveyed), 'тыс. т',
       b.cover != null ? dec1(b.cover) + ' % валового сбора' : '');
 
@@ -951,10 +977,11 @@
     // не нашли, не показываем: пустых строк в кадре нет.
     $('cls-sub').textContent = 'Доля от обследованного объёма\n' +
       fmt1(b.surveyed) + ' тыс. т';
-    $('cls-foot').style.display = '';
-    $('cls-foot').textContent = b.bad
-      ? 'Не соответствует требованиям ГОСТ — ' + fmt1(b.bad) + ' тыс. т'
-      : 'Соответствует требованиям ГОСТ — ' + dec1(b.compliance) + ' %';
+    // отметку о соответствии/несоответствии ГОСТу из карточки региона убрали
+    // (правка заказчика 29.09, слайд 1 презентации): в интерфейсе региона
+    // её быть не должно. Общий процент по стране — отдельная плашка слева
+    // («Всего по России», drawTotal/bothCompliance), её это не касается.
+    $('cls-foot').style.display = 'none';
     var cls = $('cls-body');
     cls.textContent = '';
     (b.classes || []).forEach(function (p, i) {
@@ -1116,9 +1143,15 @@
     var noMon = !hasMon(regionId);
     var note = noMon ? 'Госмониторинг не проводится'
       : 'Твёрдую пшеницу в регионе не возделывают';
-    $('reg-sub').textContent = noMon
-      ? 'Госмониторинг в этом регионе не проводится'
-      : kindLabel() + '  ·  ' + note;
+    var sub = $('reg-sub');
+    sub.textContent = '';
+    if (noMon) {
+      // ни по одному виду цифр нет — переключать нечего, кнопки не нужны
+      sub.appendChild(document.createTextNode('Госмониторинг в этом регионе не проводится'));
+    } else {
+      appendKindButtons(sub, regionId);
+      sub.appendChild(document.createTextNode('  ·  ' + note));
+    }
     bigNum($('gross-body'), '—', '', note);
     bigNum($('surv-body'), '—', '', note);
     $('cls-sub').textContent = note;

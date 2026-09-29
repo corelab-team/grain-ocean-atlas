@@ -796,6 +796,29 @@ body.mon-screen { background: #141d23; }
   /* в кадре вокруг разделителя по два пробела */
   white-space: pre-wrap;
 }
+/* «Мягкая пшеница / Твёрдая пшеница» в подписи региона — переключатель
+   вида пшеницы по клику (правка заказчика 29.09). Кнопки встроены прямо
+   в строку подписи, поэтому шрифт и цвет наследуют mn-sub, а текущий
+   выбор выделяется золотом — тем же приёмом, что и mn-tab.is-on выше. */
+#sec-monitoring .mn-kind-btn {
+  border: 0;
+  margin: 0 -6px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  color: var(--mn-muted);
+  cursor: pointer;
+}
+#sec-monitoring .mn-kind-btn.is-on {
+  color: var(--mn-gold);
+  cursor: default;
+}
+#sec-monitoring .mn-kind-btn:not(.is-on):not(.is-off):active { background: rgba(47, 66, 64, .6); }
+/* вида пшеницы, по которому у региона в этом году нет цифр, кнопка
+   не открывает — гасим её так же, как mn-year.is-off и card-key.is-off */
+#sec-monitoring .mn-kind-btn.is-off { opacity: .35; cursor: default; }
+#sec-monitoring .mn-kind-sep { color: var(--mn-muted); }
 
 #sec-monitoring .mn-home-reg { left: 1540px; top: 48px; width: 300px; height: 108px; }
 #sec-monitoring .mn-back { left: 48px; top: 922px; width: 480px; height: 78px; }

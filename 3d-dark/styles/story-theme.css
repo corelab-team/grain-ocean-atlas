@@ -312,6 +312,16 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 /* панель из одного абзаца: текст прижат к верхнему отступу */
 #sec-story .sc-panel-p:first-child { margin-top: 0; }
 
+/* требования страны назначения (экран 21): правка заказчика 29.09
+   принесла дословные тексты по пяти странам — у части из них (Иран,
+   Индонезия) по три развёрнутых пункта, и на кегле 24/32 панель
+   упиралась в нижнюю навигацию. Текст короче не делаем — только кегль. */
+#sec-story .sc-panel.is-country .sc-panel-p {
+  margin-top: 18px;
+  font-size: 19px;
+  line-height: 26px;
+}
+
 /* строки показателей: номер, название, значение */
 
 #sec-story .sc-rows {
@@ -910,6 +920,53 @@ body.story-screen { background: var(--sc-bg, #141D23); }
   color: var(--sc-dim);
 }
 #sec-story .sc-count.is-done { color: var(--sc-ok-text); }
+/* все доступные метки найдены, но условие просит больше (амброзия
+   полыннолистная на экране 09: два куста нарисовано, найти просят три) —
+   отдельный, предупреждающий тон вместо «успешного» зелёного is-done */
+#sec-story .sc-count.is-partial { color: #E3C182; }
+
+/* ------------- вращение и сканирование зерна (экраны 11–12) -------------
+   Правка заказчика 29.09. Своего слоя с одним зерном в кадрах нет —
+   зерно нарисовано прямо в кадре сцены целиком, поэтому средствами CSS
+   вращаем и сканируем всю картинку: на ровном тёмном фоне кадра это
+   смотрится как единый объект. Ничего, кроме CSS-анимаций, не подключали. */
+#sec-story .sc-scene.is-grain-anim { perspective: 1600px; }
+#sec-story .sc-scene img.is-grain-spin {
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  animation: sc-grain-spin 14s linear infinite;
+}
+@keyframes sc-grain-spin {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+/* полоса «сканирования»: проходит сверху вниз и обратно поверх зерна */
+#sec-story .sc-grain-scan {
+  position: absolute;
+  z-index: 3;
+  overflow: hidden;
+  border-radius: 12px;
+  pointer-events: none;
+}
+#sec-story .sc-grain-scan::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5%;
+  min-height: 10px;
+  background: linear-gradient(180deg,
+    rgba(120, 225, 170, 0) 0%,
+    rgba(140, 255, 205, .85) 50%,
+    rgba(120, 225, 170, 0) 100%);
+  box-shadow: 0 0 24px 6px rgba(120, 225, 170, .45);
+  animation: sc-grain-scanline 4.5s ease-in-out infinite;
+}
+@keyframes sc-grain-scanline {
+  0%   { top: -5%; }
+  50%  { top: 100%; }
+  100% { top: -5%; }
+}
 
 /* ------------------------------- табы -------------------------------
    Единая нейтральная подложка, выбранный сегмент светлее. Золото
@@ -1076,18 +1133,21 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 /* кнопка внутри панели (например «Посмотреть пакет») */
 #sec-story .sc-panel-btn { margin-top: 28px; }
 
-/* пары «название — пояснение» столбиком: сопроводительные документы */
-/* кадр 21: строки пакета документов идут шагом 96 px без зазоров,
-   под ними сразу золотая кнопка */
+/* пары «название — пояснение» столбиком: сопроводительные документы.
+   Правка заказчика 29.09: список вырос до десяти пунктов и лишился
+   пояснений («без описания к каждому документу»), поэтому строка
+   больше не тянется на фиксированные 96 px — высота по содержимому,
+   а пустая .sc-lead2-v («» вторым элементом пары в EXPORT_DOCS) просто
+   не рисуется и не отъедает место. */
 #sec-story .sc-leads2 { margin-top: 0; }
 #sec-story .sc-lead2 {
-  height: 96px;
-  padding: 16px 0;
+  height: auto;
+  padding: 14px 0;
 }
 #sec-story .sc-lead2-k {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 400;
-  line-height: 28.8px;
+  line-height: 27px;
   color: var(--sc-text);
 }
 #sec-story .sc-lead2-v {
@@ -1097,6 +1157,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
   line-height: 28px;
   color: var(--sc-muted);
 }
+#sec-story .sc-lead2-v:empty { display: none; }
 #sec-story .sc-leads2 + .sc-panel-btn { margin-top: 0; }
 
 /* полоски долей (несоответствия за сезон) ушли вместе с экраном

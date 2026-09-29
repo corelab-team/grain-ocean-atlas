@@ -108,6 +108,17 @@
     feed: function () {
       var s = feedState();
       return { pic: C.pic(s.title, s.img, 'фото', '', s.at) };
+    },
+    /* экран 12: сцена меняется вслед за выбранным шагом обеззараживания
+       (st.sel) — см. sceneBySel: 'store' у store-1 и SLOTS.storeCard.
+       ВАЖНО: sceneFor() ждёт объект { pic: ... }, как у food/feed выше —
+       найденный по коду 30.09 баг был именно в том, что тут возвращался
+       сам объект картинки (find(...).scene), а не он же в обёртке
+       { pic: ... }; из-за этого sceneFor(scr).pic давал undefined,
+       и фон сцены не рисовался вовсе (сцена оставалась пустой,
+       видна была только миниатюра справа). */
+    store: function () {
+      return { pic: find(C.storeSteps, selKey()).scene };
     }
   };
 
@@ -160,19 +171,35 @@
        Её нет только у заставки, меню, Центра, почвы и хранения. */
     var vig = !NO_VIGNETTE[scr.id];
     var box = el('div', 'sc-scene' + (p && p.fit === 'contain' ? ' is-contain' : '') +
-      (vig ? ' is-vig' : ''));
+      (vig ? ' is-vig' : '') + (scr.grainAnim ? ' is-grain-anim' : ''));
     if (p && p.img) {
       var im = new Image();
       im.src = U.asset(p.img);
       im.alt = p.cap || '';
       if (p.at) {
-        im.className = 'is-at';
+        im.className = 'is-at' + (scr.grainAnim ? ' is-grain-spin' : '');
         im.style.left = p.at[0] + 'px';
         im.style.top = p.at[1] + 'px';
         im.style.width = p.at[2] + 'px';
         im.style.height = p.at[3] + 'px';
       }
       box.appendChild(im);
+      /* Правка заказчика 29.09: зерно на экранах лабораторного скрининга
+         и результата исследования медленно вращается вокруг оси, и по
+         нему проходит полоса «сканирования» сверху вниз и обратно.
+         Отдельного слоя с одним зерном в кадрах нет (весь кадр — это
+         зерно в подсветке), поэтому вращается и сканируется вся картинка
+         целиком — на тёмном фоне кадра это не режет глаз. Средствами
+         проекта: только CSS-анимация, см. .is-grain-spin/.sc-grain-scan
+         в story-theme.css, новых библиотек не добавляли. */
+      if (scr.grainAnim && p.at) {
+        var scan = el('div', 'sc-grain-scan');
+        scan.style.left = p.at[0] + 'px';
+        scan.style.top = p.at[1] + 'px';
+        scan.style.width = p.at[2] + 'px';
+        scan.style.height = p.at[3] + 'px';
+        box.appendChild(scan);
+      }
     }
     /* Предметы, лежащие на сцене отдельным слоем (беспилотник на кадре 09-c):
        координаты at — как у сцены, внутри блока 1888x1048. */
@@ -427,9 +454,13 @@
 
   /**
    * Сетка плиток-кнопок.
-   *   src   имя списка в справочнике (C[src]);
-   *   cols  сколько столбцов; gap — зазор, если он не 16;
-   *   mid   подпись по центру, ico — с иконкой, tall — высокая плитка.
+   *   src     имя списка в справочнике (C[src]);
+   *   cols    сколько столбцов; gap — зазор, если он не 16;
+   *   mid     подпись по центру, ico — с иконкой, tall — высокая плитка;
+   *   noClick — блок некликабельный (правка заказчика 29.09, экран
+   *             «Направления исследования» на 07): плитки остаются
+   *             видимыми и сохраняют вид выбранной по умолчанию, но
+   *             касания не ловят и выбор не меняют.
    * Плитка выбирается касанием, выбор живёт в st.sel.
    */
   function gridEl(g) {
@@ -446,12 +477,22 @@
       if (it.span) b.style.gridColumn = '1 / -1';
       if (it.icon) b.appendChild(iconEl(it.icon));
       b.appendChild(el('span', null, it.name));
-      b.addEventListener('click', function () {
-        resetIdle();
-        st.sel = it.key;
-        if (PICKED[cur.id]) PICKED[cur.id]();
-        rerender();
-      });
+      if (g.noClick) {
+        // «некликабельный» здесь значит именно это: касание не ловим,
+        // но внешний вид не трогаем — поэтому не b.disabled (в паре
+        // браузеров он приглушает даже кастомно раскрашенную кнопку),
+        // а просто не вешаем обработчик
+        b.style.cursor = 'default';
+        b.setAttribute('aria-disabled', 'true');
+        b.tabIndex = -1;
+      } else {
+        b.addEventListener('click', function () {
+          resetIdle();
+          st.sel = it.key;
+          if (PICKED[cur.id]) PICKED[cur.id]();
+          rerender();
+        });
+      }
       box.appendChild(b);
     });
     return box;
@@ -732,8 +773,15 @@
   /**
    * Цели-сорняки поверх сцены. Пока не нашли — прозрачные, по касанию
    * появляется кольцо и подпись. Обзор с БПЛА подсвечивает все сразу.
+   *
+   * total — сколько сорняков полагается найти по условию счётчика;
+   * по умолчанию равно числу меток, но экран 09 (см. weedsTotal
+   * в справочнике) специально просит на одну больше, чем реально
+   * нарисовано: амброзия полыннолистная на кадре — два куста, а найти
+   * просят три. Третьей не существует, и это не баг — так посетитель
+   * видит, что поле не полностью чистое, а не что счётчик сломан.
    */
-  function weedsEl(marks, root) {
+  function weedsEl(marks, root, total) {
     if (!st.found) st.found = {};
     st.weedEls = [];
     marks.forEach(function (m, i) {
@@ -747,20 +795,27 @@
         resetIdle();
         st.found[i] = true;
         b.classList.add('is-found');
-        if (st.countEl) countWeeds(marks.length);
+        if (st.countEl) countWeeds(marks.length, total);
       });
       st.weedEls.push(b);
       root.appendChild(b);
     });
-    if (st.countEl) countWeeds(marks.length);
+    if (st.countEl) countWeeds(marks.length, total);
   }
 
-  function countWeeds(total) {
+  function countWeeds(available, total) {
+    total = total || available;
     var n = 0;
     for (var k in st.found) if (st.found[k]) n++;
+    /* все найдены, но по условию их должно быть больше: реакция —
+       не «баг», а явная подсказка, что поле обследовано не до конца */
+    var short = n >= available && n < total;
     st.countEl.style.display = n ? '' : 'none';
-    st.countEl.textContent = 'Найдено ' + n + ' из ' + total;
+    st.countEl.textContent = short
+      ? 'Найдено ' + n + ' из ' + total + ' — похоже, поле обследовано не до конца'
+      : 'Найдено ' + n + ' из ' + total;
     st.countEl.classList.toggle('is-done', n === total);
+    st.countEl.classList.toggle('is-partial', short);
   }
 
   /** Плавающие блоки по координатам кадра: панель, кнопки, сетка. */
@@ -779,24 +834,33 @@
 
   /* ---------------- деталь экрана подготовки складов ----------------
      Прежние девять шагов подготовки зернохранилища сняты с маршрута
-     правкой заказчика 21.09: вместе с ними из движка ушли меню
-     разделов, метки и «горячие» места на ангаре. Остался один
-     список шагов подготовки. */
+     правкой заказчика 21.09, а правка 29.09 вернула интерактив в виде
+     пяти шагов обеззараживания (осмотр → очистка → обеззараживание →
+     вентиляция → контроль, см. STORE_STEPS в story-content.js). Шаг
+     живёт в st.sel, меню слева кликабельно: пройденные шаги отмечены
+     галочкой (.is-done), текущий подсвечен (.is-on) — классы уже были
+     в story-theme.css, оставались неиспользованными с прежней версии
+     интерактива. */
 
-  /**
-   * Четыре шага подготовки склада списком: название и пояснение.
-   * По правке заказчика шаги заглушены (серые, «в разработке»),
-   * поэтому касания они не ловят и выбранного шага здесь нет.
-   */
-  function storePrepEl() {
+  /** Меню из пяти шагов: клик переключает st.sel и меняет сцену/карточку. */
+  function storeMenuEl() {
     var box = el('div', 'sc-menu');
-    (C.storePrep || []).forEach(function (m) {
-      var n = el('div', 'sc-menu-i');
+    var at = -1;
+    C.storeSteps.forEach(function (s, i) { if (s.key === selKey()) at = i; });
+    C.storeSteps.forEach(function (s, i) {
+      var n = el('button', 'sc-menu-i' +
+        (i === at ? ' is-on' : (i < at ? ' is-done' : '')));
+      n.type = 'button';
       var t = el('div', 'sc-menu-t');
-      t.appendChild(el('div', 'sc-menu-k', m[0]));
-      t.appendChild(el('div', 'sc-menu-v', m[1]));
+      t.appendChild(el('div', 'sc-menu-k', s.name));
+      t.appendChild(el('div', 'sc-menu-v', s.sub));
       n.appendChild(t);
-      wip(n);
+      if (i < at) n.appendChild(el('span', 'sc-menu-ok', '✓'));
+      n.addEventListener('click', function () {
+        resetIdle();
+        st.sel = s.key;
+        rerender();
+      });
       box.appendChild(n);
     });
     return box;
@@ -929,9 +993,17 @@
         'weedDrone', on);
     },
 
-    /* --- экран 12: подготовка складов --- */
+    /* --- экран 12: подготовка складов, пять шагов --- */
 
-    storePrep: function () { return storePrepEl(); },
+    storeMenu: function () { return storeMenuEl(); },
+    storeCard: function () {
+      var s = find(C.storeSteps, selKey());
+      return panelEl({ cap: s.cap, title: s.card, text: s.text });
+    },
+    storeShot: function () {
+      var s = find(C.storeSteps, selKey());
+      return shotEl(s.shot);
+    },
 
     /* --- экран 16: продовольственный маршрут --- */
 
@@ -992,10 +1064,18 @@
     /* --- экран 21: требования выбранной страны --- */
     countryCard: function () {
       var c = find(C.countries, selKey());
-      /* в кадре 21 пометки под текстом нет. Заглушка блока выбора
-         страны включается полем countryWip у экрана */
-      return panelEl({ title: 'Требования\nнаправления', text: c.text,
-        wip: cur.countryWip });
+      /* в кадре 21 пометки под текстом нет. Поле countryWip у экрана
+         раньше глушило этот блок (перечня требований не было) — правка
+         29.09 принесла дословные тексты по пяти странам, а координатор
+         30.09 попросил снять заглушку: у export-2 countryWip больше
+         не выставляется, wip здесь всегда false. Тексты Ирана
+         и Индонезии заметно длиннее прежней заглушки (по три пункта),
+         панель у левого края невысокая (до нижней навигации), поэтому
+         у неё уменьшен кегль текста (cls: is-country) — иначе длинные
+         тексты наезжали на кнопку «Назад». Слова из текста не менялись,
+         правка только визуальная. */
+      return panelEl({ cls: 'is-country', title: 'Требования\nнаправления',
+        text: c.text, wip: cur.countryWip });
     }
   };
 
@@ -1228,7 +1308,7 @@
     if (scr.markers) markersEl(scr, root);
     if (scr.radios) radiosEl(scr, root);
     if (scr.overlay && OVERLAYS[scr.overlay]) OVERLAYS[scr.overlay](root);
-    if (scr.weedsByTab && scr.weedsByTab[tabKey()]) weedsEl(scr.weedsByTab[tabKey()], root);
+    if (scr.weedsByTab && scr.weedsByTab[tabKey()]) weedsEl(scr.weedsByTab[tabKey()], root, scr.weedsTotal);
     if (scr.title || scr.eyebrow) root.appendChild(headEl(scr));
     if (scr.hero) root.appendChild(el('div', 'sc-hero', scr.hero));
     if (scr.tabsFrom) root.appendChild(tabsSceneEl(scr));

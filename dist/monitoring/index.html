@@ -2783,6 +2783,16 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 /* панель из одного абзаца: текст прижат к верхнему отступу */
 #sec-story .sc-panel-p:first-child { margin-top: 0; }
 
+/* требования страны назначения (экран 21): правка заказчика 29.09
+   принесла дословные тексты по пяти странам — у части из них (Иран,
+   Индонезия) по три развёрнутых пункта, и на кегле 24/32 панель
+   упиралась в нижнюю навигацию. Текст короче не делаем — только кегль. */
+#sec-story .sc-panel.is-country .sc-panel-p {
+  margin-top: 18px;
+  font-size: 19px;
+  line-height: 26px;
+}
+
 /* строки показателей: номер, название, значение */
 
 #sec-story .sc-rows {
@@ -3381,6 +3391,53 @@ body.story-screen { background: var(--sc-bg, #141D23); }
   color: var(--sc-dim);
 }
 #sec-story .sc-count.is-done { color: var(--sc-ok-text); }
+/* все доступные метки найдены, но условие просит больше (амброзия
+   полыннолистная на экране 09: два куста нарисовано, найти просят три) —
+   отдельный, предупреждающий тон вместо «успешного» зелёного is-done */
+#sec-story .sc-count.is-partial { color: #E3C182; }
+
+/* ------------- вращение и сканирование зерна (экраны 11–12) -------------
+   Правка заказчика 29.09. Своего слоя с одним зерном в кадрах нет —
+   зерно нарисовано прямо в кадре сцены целиком, поэтому средствами CSS
+   вращаем и сканируем всю картинку: на ровном тёмном фоне кадра это
+   смотрится как единый объект. Ничего, кроме CSS-анимаций, не подключали. */
+#sec-story .sc-scene.is-grain-anim { perspective: 1600px; }
+#sec-story .sc-scene img.is-grain-spin {
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  animation: sc-grain-spin 14s linear infinite;
+}
+@keyframes sc-grain-spin {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+/* полоса «сканирования»: проходит сверху вниз и обратно поверх зерна */
+#sec-story .sc-grain-scan {
+  position: absolute;
+  z-index: 3;
+  overflow: hidden;
+  border-radius: 12px;
+  pointer-events: none;
+}
+#sec-story .sc-grain-scan::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5%;
+  min-height: 10px;
+  background: linear-gradient(180deg,
+    rgba(120, 225, 170, 0) 0%,
+    rgba(140, 255, 205, .85) 50%,
+    rgba(120, 225, 170, 0) 100%);
+  box-shadow: 0 0 24px 6px rgba(120, 225, 170, .45);
+  animation: sc-grain-scanline 4.5s ease-in-out infinite;
+}
+@keyframes sc-grain-scanline {
+  0%   { top: -5%; }
+  50%  { top: 100%; }
+  100% { top: -5%; }
+}
 
 /* ------------------------------- табы -------------------------------
    Единая нейтральная подложка, выбранный сегмент светлее. Золото
@@ -3547,18 +3604,21 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 /* кнопка внутри панели (например «Посмотреть пакет») */
 #sec-story .sc-panel-btn { margin-top: 28px; }
 
-/* пары «название — пояснение» столбиком: сопроводительные документы */
-/* кадр 21: строки пакета документов идут шагом 96 px без зазоров,
-   под ними сразу золотая кнопка */
+/* пары «название — пояснение» столбиком: сопроводительные документы.
+   Правка заказчика 29.09: список вырос до десяти пунктов и лишился
+   пояснений («без описания к каждому документу»), поэтому строка
+   больше не тянется на фиксированные 96 px — высота по содержимому,
+   а пустая .sc-lead2-v («» вторым элементом пары в EXPORT_DOCS) просто
+   не рисуется и не отъедает место. */
 #sec-story .sc-leads2 { margin-top: 0; }
 #sec-story .sc-lead2 {
-  height: 96px;
-  padding: 16px 0;
+  height: auto;
+  padding: 14px 0;
 }
 #sec-story .sc-lead2-k {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 400;
-  line-height: 28.8px;
+  line-height: 27px;
   color: var(--sc-text);
 }
 #sec-story .sc-lead2-v {
@@ -3568,6 +3628,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
   line-height: 28px;
   color: var(--sc-muted);
 }
+#sec-story .sc-lead2-v:empty { display: none; }
 #sec-story .sc-leads2 + .sc-panel-btn { margin-top: 0; }
 
 /* полоски долей (несоответствия за сезон) ушли вместе с экраном
@@ -5137,6 +5198,29 @@ body.mon-screen { background: #141d23; }
   /* в кадре вокруг разделителя по два пробела */
   white-space: pre-wrap;
 }
+/* «Мягкая пшеница / Твёрдая пшеница» в подписи региона — переключатель
+   вида пшеницы по клику (правка заказчика 29.09). Кнопки встроены прямо
+   в строку подписи, поэтому шрифт и цвет наследуют mn-sub, а текущий
+   выбор выделяется золотом — тем же приёмом, что и mn-tab.is-on выше. */
+#sec-monitoring .mn-kind-btn {
+  border: 0;
+  margin: 0 -6px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  color: var(--mn-muted);
+  cursor: pointer;
+}
+#sec-monitoring .mn-kind-btn.is-on {
+  color: var(--mn-gold);
+  cursor: default;
+}
+#sec-monitoring .mn-kind-btn:not(.is-on):not(.is-off):active { background: rgba(47, 66, 64, .6); }
+/* вида пшеницы, по которому у региона в этом году нет цифр, кнопка
+   не открывает — гасим её так же, как mn-year.is-off и card-key.is-off */
+#sec-monitoring .mn-kind-btn.is-off { opacity: .35; cursor: default; }
+#sec-monitoring .mn-kind-sep { color: var(--mn-muted); }
 
 #sec-monitoring .mn-home-reg { left: 1540px; top: 48px; width: 300px; height: 108px; }
 #sec-monitoring .mn-back { left: 48px; top: 922px; width: 480px; height: 78px; }
@@ -7184,8 +7268,10 @@ body.mon-screen { background: #141d23; }
     box.textContent = '';
     bigNum(el2(box), fmt1(bothSum('gross')), 'тыс. т',
       'общий валовой сбор мягкой и твёрдой пшеницы');
+    // слово «урожай» из подписи убрали (правка заказчика 29.09): просят,
+    // чтобы мониторинг читался сам по себе за год, без отсылки к урожаю
     bigNum(el2(box), fmt1(bothSum('surveyed')), 'тыс. т',
-      'обследовано зерна урожая ' + year);
+      'обследовано зерна за ' + year + ' год');
     bigNum($('gost-body'), dec1(bothCompliance()), '%',
       'соответствует требованиям ГОСТ');
   }
@@ -7383,8 +7469,27 @@ body.mon-screen { background: #141d23; }
 
   /* ------------------------------ экран региона ------------------------------ */
 
-  function kindLabel() {
-    return kind === 'durum' ? 'Твёрдая пшеница' : 'Мягкая пшеница';
+  /** Кнопки «Мягкая пшеница / Твёрдая пшеница» в подписи региона: вид
+      пшеницы общий на весь раздел (карта, «Топ-10», карточка — см. setKind
+      и комментарий над ней), но выбирать его теперь можно и прямо тут,
+      по клику (правка заказчика 29.09, слайд 1 презентации). Вида, по
+      которому у региона в этом году нет цифр, кнопка не открывает —
+      как и везде в разделе, «нет данных» не пишем, а просто гасим
+      кнопку (тот же приём, что у mn-year.is-off и card-key.is-off). */
+  function appendKindButtons(box, id) {
+    KINDS.forEach(function (k, i) {
+      if (i > 0) box.appendChild(el('span', 'mn-kind-sep', ' / '));
+      var has = !!rec(id, k.key);
+      var btn = el('button', 'mn-kind-btn' +
+        (kind === k.key ? ' is-on' : '') + (has ? '' : ' is-off'), k.label);
+      btn.type = 'button';
+      btn.disabled = !has;
+      btn.addEventListener('click', function () {
+        resetIdle();
+        setKind(k.key);
+      });
+      box.appendChild(btn);
+    });
   }
 
   /** Метки-цифры вокруг зерна: кружок и подпись над ним. */
@@ -7430,12 +7535,17 @@ body.mon-screen { background: #141d23; }
     if (!b) { drawMarks(null); drawEmptyRegion(); return; }
     drawMarks(b);
 
-    // третью часть подписи добавляем только вместе с разделителем,
-    // чтобы при выключенном strongNote не висело « · » в конце строки
-    $('reg-sub').textContent = kindLabel() + '  ·  урожай ' + year +
-      (b.strong && strongOn() ? '  ·  регион с сильной пшеницей' : '');
+    // подпись строим из узлов, не из textContent: первая часть — кликабельные
+    // кнопки вида пшеницы, дальше год и (если есть) пометка про сильную
+    // пшеницу — как раньше, через разделитель, чтобы « · » не повисло в конце
+    var sub = $('reg-sub');
+    sub.textContent = '';
+    appendKindButtons(sub, regionId);
+    sub.appendChild(document.createTextNode('  ·  ' + year +
+      (b.strong && strongOn() ? '  ·  регион с сильной пшеницей' : '')));
 
-    bigNum($('gross-body'), fmt1(b.gross), 'тыс. т', 'Урожай ' + year);
+    // было «Урожай 2026» — то же самое слово убрали и здесь (см. выше)
+    bigNum($('gross-body'), fmt1(b.gross), 'тыс. т', String(year) + ' год');
     bigNum($('surv-body'), fmt1(b.surveyed), 'тыс. т',
       b.cover != null ? dec1(b.cover) + ' % валового сбора' : '');
 
@@ -7444,10 +7554,11 @@ body.mon-screen { background: #141d23; }
     // не нашли, не показываем: пустых строк в кадре нет.
     $('cls-sub').textContent = 'Доля от обследованного объёма\n' +
       fmt1(b.surveyed) + ' тыс. т';
-    $('cls-foot').style.display = '';
-    $('cls-foot').textContent = b.bad
-      ? 'Не соответствует требованиям ГОСТ — ' + fmt1(b.bad) + ' тыс. т'
-      : 'Соответствует требованиям ГОСТ — ' + dec1(b.compliance) + ' %';
+    // отметку о соответствии/несоответствии ГОСТу из карточки региона убрали
+    // (правка заказчика 29.09, слайд 1 презентации): в интерфейсе региона
+    // её быть не должно. Общий процент по стране — отдельная плашка слева
+    // («Всего по России», drawTotal/bothCompliance), её это не касается.
+    $('cls-foot').style.display = 'none';
     var cls = $('cls-body');
     cls.textContent = '';
     (b.classes || []).forEach(function (p, i) {
@@ -7609,9 +7720,15 @@ body.mon-screen { background: #141d23; }
     var noMon = !hasMon(regionId);
     var note = noMon ? 'Госмониторинг не проводится'
       : 'Твёрдую пшеницу в регионе не возделывают';
-    $('reg-sub').textContent = noMon
-      ? 'Госмониторинг в этом регионе не проводится'
-      : kindLabel() + '  ·  ' + note;
+    var sub = $('reg-sub');
+    sub.textContent = '';
+    if (noMon) {
+      // ни по одному виду цифр нет — переключать нечего, кнопки не нужны
+      sub.appendChild(document.createTextNode('Госмониторинг в этом регионе не проводится'));
+    } else {
+      appendKindButtons(sub, regionId);
+      sub.appendChild(document.createTextNode('  ·  ' + note));
+    }
     bigNum($('gross-body'), '—', '', note);
     bigNum($('surv-body'), '—', '', note);
     $('cls-sub').textContent = note;
