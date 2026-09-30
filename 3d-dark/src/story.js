@@ -92,6 +92,16 @@
     return list[0];
   }
 
+  /** Станция 4: сценарий экрана (силос или ангар, поле flow) и его
+      текущий шаг — номер лежит в st.sel. */
+  function flow() { return C.flows[cur.flow]; }
+  function flowStep() {
+    var steps = flow().steps;
+    var n = parseInt(selKey(), 10);
+    if (!(n >= 1 && n <= steps.length)) n = 1;
+    return steps[n - 1];
+  }
+
   /** Экран 16: выбранная вкладка продовольственного маршрута. */
   function foodTab() { return find(C.food, tabKey()); }
 
@@ -109,17 +119,10 @@
       var s = feedState();
       return { pic: C.pic(s.title, s.img, 'фото', '', s.at) };
     },
-    /* экран 12: сцена меняется вслед за выбранным шагом обеззараживания
-       (st.sel) — см. sceneBySel: 'store' у store-1 и SLOTS.storeCard.
-       ВАЖНО: sceneFor() ждёт объект { pic: ... }, как у food/feed выше —
-       найденный по коду 30.09 баг был именно в том, что тут возвращался
-       сам объект картинки (find(...).scene), а не он же в обёртке
-       { pic: ... }; из-за этого sceneFor(scr).pic давал undefined,
-       и фон сцены не рисовался вовсе (сцена оставалась пустой,
-       видна была только миниатюра справа). */
-    store: function () {
-      return { pic: find(C.storeSteps, selKey()).scene };
-    }
+    /* станция 4: сцена меняется вслед за шагом (st.sel) — см.
+       sceneBySel: 'flow' у store-silo и store-1. sceneFor() ждёт
+       объект { pic: ... }, как у food/feed выше. */
+    flow: function () { return { pic: flowStep().scene }; }
   };
 
   function sceneFor(scr) {
@@ -165,7 +168,45 @@
      кадра макета как есть, и участки лежат над затемнением — с ним
      фон по краям темнел бы, а участок нет. */
   var NO_VIGNETTE = { intro: 1, start: 1, hub: 1, 'soil-1': 1, 'soil-2': 1,
-    'soil-3': 1, 'soil-4': 1, 'store-1': 1 };
+    'soil-3': 1, 'soil-4': 1, 'store-silo': 1, 'store-1': 1 };
+
+  /**
+   * Ролик на сцене (кадр 04): статичный кадр p.img — постер, пока ролик
+   * грузится. Создаётся один раз на заход на экран, см. sceneLayer.
+   */
+  function videoEl(p, vid) {
+    var vv = document.createElement('video');
+    vv.autoplay = true;
+    vv.loop = true;
+    vv.muted = true;
+    vv.defaultMuted = true;
+    vv.setAttribute('muted', '');       // автозапуск в некоторых браузерах смотрит на атрибут, а не на свойство
+    vv.playsInline = true;
+    vv.setAttribute('playsinline', '');
+    vv.preload = 'auto';
+    vv.poster = U.asset(p.img);         // статичный кадр виден, пока ролик не загрузился
+    vv.style.pointerEvents = 'none';    // стенд сенсорный — слой видео не должен ловить касания
+    var vat = vid.at || p.at;
+    if (vat) {
+      vv.className = 'is-at';
+      vv.style.left = vat[0] + 'px';
+      vv.style.top = vat[1] + 'px';
+      vv.style.width = vat[2] + 'px';
+      vv.style.height = vat[3] + 'px';
+    }
+    vv.src = U.asset(vid.src);
+    vv.load();
+    /* play() зовём отложенно: сейчас box ещё не вставлен в документ
+       (это сделает вызывающий код чуть позже), а часть браузеров
+       не запускает автовоспроизведение у ролика, пока его нет в
+       дереве страницы. setTimeout(0) откладывает вызов до конца
+       текущего цикла отрисовки, когда сцена уже на странице. */
+    setTimeout(function () {
+      var playPromise = vv.play();
+      if (playPromise && playPromise.catch) playPromise.catch(function () { /* автозапуск включится по касанию */ });
+    }, 0);
+    return vv;
+  }
 
   function sceneLayer(scr) {
     var p = sceneFor(scr).pic || null;
@@ -183,37 +224,20 @@
        рисуется обычная картинка, как раньше. */
     var vid = sceneFor(scr).video || null;
     if (p && p.img && vid) {
-      var vv = document.createElement('video');
-      vv.autoplay = true;
-      vv.loop = true;
-      vv.muted = true;
-      vv.defaultMuted = true;
-      vv.setAttribute('muted', '');       // автозапуск в некоторых браузерах смотрит на атрибут, а не на свойство
-      vv.playsInline = true;
-      vv.setAttribute('playsinline', '');
-      vv.preload = 'auto';
-      vv.poster = U.asset(p.img);         // статичный кадр виден, пока ролик не загрузился
-      vv.style.pointerEvents = 'none';    // стенд сенсорный — слой видео не должен ловить касания
-      var vat = vid.at || p.at;
-      if (vat) {
-        vv.className = 'is-at';
-        vv.style.left = vat[0] + 'px';
-        vv.style.top = vat[1] + 'px';
-        vv.style.width = vat[2] + 'px';
-        vv.style.height = vat[3] + 'px';
+      /* Правка заказчика 30.09: выбор показателя на лабораторном
+         скрининге перерисовывает экран целиком, и ролик каждый раз
+         начинался сначала. Поэтому элемент видео живёт в состоянии
+         экрана st (оно сбрасывается только при уходе с экрана) и при
+         перерисовке переставляется в новую сцену тот же самый.
+         Браузер ставит ролик на паузу, лишь если к концу текущей
+         задачи его так и не вернули в документ, — а draw() вставляет
+         его обратно сразу, поэтому видео просто идёт дальше. */
+      var vv = st.video && st.video.src === vid.src ? st.video.el : null;
+      if (!vv) {
+        vv = videoEl(p, vid);
+        st.video = { src: vid.src, el: vv };
       }
-      vv.src = U.asset(vid.src);
       box.appendChild(vv);
-      vv.load();
-      /* play() зовём отложенно: сейчас box ещё не вставлен в документ
-         (это сделает вызывающий код чуть позже), а часть браузеров
-         не запускает автовоспроизведение у ролика, пока его нет в
-         дереве страницы. setTimeout(0) откладывает вызов до конца
-         текущего цикла отрисовки, когда сцена уже на странице. */
-      setTimeout(function () {
-        var playPromise = vv.play();
-        if (playPromise && playPromise.catch) playPromise.catch(function () { /* автозапуск включится по касанию */ });
-      }, 0);
       /* Заплатка поверх ролика: гасит вшитый в исходник водяной знак.
          Поле mask — [x, y, ширина, высота] в координатах блока сцены,
          цвет берётся из самого кадра (см. справочник). Пятно мягкое:
@@ -908,38 +932,196 @@
     });
   }
 
-  /* ---------------- деталь экрана подготовки складов ----------------
-     Прежние девять шагов подготовки зернохранилища сняты с маршрута
-     правкой заказчика 21.09, а правка 29.09 вернула интерактив в виде
-     пяти шагов обеззараживания (осмотр → очистка → обеззараживание →
-     вентиляция → контроль, см. STORE_STEPS в story-content.js). Шаг
-     живёт в st.sel, меню слева кликабельно: пройденные шаги отмечены
-     галочкой (.is-done), текущий подсвечен (.is-on) — классы уже были
-     в story-theme.css, оставались неиспользованными с прежней версии
-     интерактива. */
+  /* -------------------- станция 4: силос и ангар --------------------
+     Правка заказчика 30.09, кадры раздела 623:3511. Меню разделов
+     слева, золотая кнопка шага, подсказки и «горячие» места на ангаре.
+     Всё собирается по текущему шагу из C.flows (см. story-content.js). */
 
-  /** Меню из пяти шагов: клик переключает st.sel и меняет сцену/карточку. */
-  function storeMenuEl() {
-    var box = el('div', 'sc-menu');
-    var at = -1;
-    C.storeSteps.forEach(function (s, i) { if (s.key === selKey()) at = i; });
-    C.storeSteps.forEach(function (s, i) {
-      var n = el('button', 'sc-menu-i' +
-        (i === at ? ' is-on' : (i < at ? ' is-done' : '')));
-      n.type = 'button';
+  /** Меню разделов: текущий подсвечен, пройденные — с галочкой
+      (у силоса галочек в кадрах нет, поле ticks). Касание открывает
+      первый шаг раздела. */
+  function flowMenuEl() {
+    var f = flow();
+    var step = flowStep();
+    var passed = true;                   // разделы до текущего пройдены
+    var box = el('nav', 'sc-menu');
+    f.menu.forEach(function (m) {
+      if (m.key === step.sec) passed = false;
+      var on = m.key === step.sec && !step.done;
+      var done = f.ticks && (step.done || passed);  // на последнем шаге пройдены все
+      var b = el('button', 'sc-menu-i' + (on ? ' is-on' : '') +
+        (done ? ' is-done' : ''));
+      b.type = 'button';
       var t = el('div', 'sc-menu-t');
-      t.appendChild(el('div', 'sc-menu-k', s.name));
-      t.appendChild(el('div', 'sc-menu-v', s.sub));
-      n.appendChild(t);
-      if (i < at) n.appendChild(el('span', 'sc-menu-ok', '✓'));
-      n.addEventListener('click', function () {
+      t.appendChild(el('div', 'sc-menu-k', m.name));
+      t.appendChild(el('div', 'sc-menu-v', m.sub));
+      b.appendChild(t);
+      if (done) b.appendChild(el('span', 'sc-menu-ok', '✓'));
+      b.addEventListener('click', function () {
         resetIdle();
-        st.sel = s.key;
-        rerender();
+        goStep(m.from);
       });
-      box.appendChild(n);
+      box.appendChild(b);
     });
     return box;
+  }
+
+  /** Переход к шагу n: состояние прежнего шага сбрасывается. */
+  function goStep(n) {
+    st.sel = String(n);
+    st.spot = null;
+    st.done = false;
+    st.before = false;
+    st.itemAt = null;
+    rerender();
+  }
+
+  /** Сцена ангара: метка, подсветки, таблетка, «горячие» места, плашка. */
+  function storeOverlay(root) {
+    var step = flowStep();
+    /* метка в кадре 623:3512 — две плашки голубого стекла: номер
+       60x64 и название 302x77 справа от него, с зазором 6 */
+    if (step.marker) {
+      var mn = el('div', 'sc-focus', String(step.marker.n));
+      mn.style.left = step.marker.x + 'px';
+      mn.style.top = step.marker.y + 'px';
+      root.appendChild(mn);
+      var mt = el('div', 'sc-focus is-wide', step.marker.label);
+      mt.style.left = (step.marker.x + 66) + 'px';
+      mt.style.top = step.marker.y + 'px';
+      root.appendChild(mt);
+    }
+    /* Подсветки пола, решётки и поток воздуха дизайнеры отдали
+       отдельными svg — кладём их по координатам кадра. Подсветка
+       пола гаснет, когда препарат уже на месте. */
+    (step.marks || []).forEach(function (mk) {
+      if (step.item && st.done) return;
+      var n = el('div', 'sc-mark');
+      place(n, mk.at);
+      var im = new Image();
+      im.src = U.asset(mk.img);
+      im.alt = '';
+      n.appendChild(im);
+      root.appendChild(n);
+    });
+    (step.spots || []).forEach(function (sp) {
+      var b = el('button', 'sc-spot' + (st.done ? ' is-on' : ''));
+      b.type = 'button';
+      place(b, sp.at);
+      b.addEventListener('click', function () { resetIdle(); ACTIONS.storeSpot(sp.key); });
+      root.appendChild(b);
+    });
+    if (step.floor) floorEl(step, root);
+    if (step.item) itemEl(step, root);
+    if (step.chip) {
+      var c = el('div', 'sc-chip', st.done ? step.chip.done : step.chip.text);
+      c.style.left = step.chip.at[0] + 'px';
+      c.style.top = step.chip.at[1] + 'px';
+      root.appendChild(c);
+    }
+  }
+
+  function place(n, at) {
+    n.style.left = at[0] + 'px';
+    n.style.top = at[1] + 'px';
+    n.style.width = at[2] + 'px';
+    n.style.height = at[3] + 'px';
+  }
+
+  /** Пол ангара: второе касание после выбора таблетки кладёт её сюда. */
+  function floorEl(step, root) {
+    var f = el('button', 'sc-spot is-floor');
+    f.type = 'button';
+    place(f, step.floor);
+    st.floorEl = f;
+    f.addEventListener('click', function (e) {
+      resetIdle();
+      if (st.spot !== 'item' || st.done) return;
+      st.itemAt = dropAt(e.clientX, e.clientY, step);
+      st.done = true;
+      st.spot = null;
+      rerender();
+    });
+    root.appendChild(f);
+  }
+
+  /**
+   * Таблетка препарата (кадр 623:3644, «Перенесите предмет сюда»).
+   * Её можно перетащить пальцем на подсвеченный пол, а можно двумя
+   * касаниями: таблетка, затем пол — так написано в пояснении справа.
+   * Отпущенная мимо пола, таблетка возвращается на место.
+   */
+  function itemEl(step, root) {
+    var at = step.item.at;
+    var n = el('div', 'sc-item' + (st.spot === 'item' ? ' is-on' : '') +
+      (st.done ? ' is-placed' : ''));
+    var pos = st.itemAt || [at[0], at[1]];
+    place(n, [pos[0], pos[1], at[2], at[3]]);
+    var im = new Image();
+    im.src = U.asset(step.item.img);
+    im.alt = 'Таблетка препарата';
+    n.appendChild(im);
+    root.appendChild(n);
+    if (st.done) return;
+
+    var drag = null;
+    n.addEventListener('pointerdown', function (e) {
+      resetIdle();
+      n.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, y: e.clientY, moved: false, k: viewScale() };
+    });
+    n.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var dx = (e.clientX - drag.x) / drag.k;
+      var dy = (e.clientY - drag.y) / drag.k;
+      if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 8) return;
+      drag.moved = true;
+      n.classList.add('is-drag');
+      n.style.transform = 'translate(' + dx + 'px, ' + dy + 'px) rotate(-12.92deg)';
+    });
+    function up(e, cancel) {
+      if (!drag) return;
+      var moved = drag.moved;
+      drag = null;
+      n.classList.remove('is-drag');
+      if (!moved) {                      // простое касание: выбрать / снять выбор
+        st.spot = st.spot === 'item' ? null : 'item';
+        rerender();
+        return;
+      }
+      if (!cancel && overFloor(e.clientX, e.clientY)) {
+        st.itemAt = dropAt(e.clientX, e.clientY, step);
+        st.done = true;
+        st.spot = null;
+        rerender();
+        return;
+      }
+      n.style.transform = '';            // мимо пола — назад на место
+    }
+    n.addEventListener('pointerup', function (e) { up(e, false); });
+    n.addEventListener('pointercancel', function (e) { up(e, true); });
+  }
+
+  /** Во сколько раз экран 1920x1080 ужат или растянут в окне. */
+  function viewScale() {
+    var r = $('view').getBoundingClientRect();
+    return r.width / 1920 || 1;
+  }
+
+  function overFloor(x, y) {
+    if (!st.floorEl) return false;
+    var r = st.floorEl.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
+  /** Куда лечь таблетке: центр карточки — под пальцем, в пределах пола. */
+  function dropAt(x, y, step) {
+    var r = $('view').getBoundingClientRect();
+    var k = viewScale();
+    var f = step.floor, w = step.item.at[2], h = step.item.at[3];
+    var cx = U.clamp((x - r.left) / k, f[0] + w / 2, f[0] + f[2] - w / 2);
+    var cy = U.clamp((y - r.top) / k, f[1] + h / 2, f[1] + f[3] - h / 2);
+    return [Math.round(cx - w / 2), Math.round(cy - h / 2)];
   }
 
   /** Метки-чипы кормового маршрута: выбор меняет карточку справа. */
@@ -958,7 +1140,7 @@
     });
   }
 
-  var OVERLAYS = { feed: feedOverlay };
+  var OVERLAYS = { store: storeOverlay, feed: feedOverlay };
 
   /**
    * Три карточки маршрута во всю высоту экрана (кадр 15). У каждой
@@ -1084,16 +1266,44 @@
       return box;
     },
 
-    /* --- экран 12: подготовка складов, пять шагов --- */
+    /* --- станция 4: силос и ангар, шаги из C.flows --- */
 
-    storeMenu: function () { return storeMenuEl(); },
-    storeCard: function () {
-      var s = find(C.storeSteps, selKey());
-      return panelEl({ cap: s.cap, title: s.card, text: s.text });
+    flowHead: function () {
+      var s = flowStep();
+      return panelEl({ title: s.title, sub: s.sub });
     },
-    storeShot: function () {
-      var s = find(C.storeSteps, selKey());
-      return shotEl(s.shot);
+    flowMenu: function () { return flowMenuEl(); },
+    /** Золотая кнопка шага. На последнем шаге ангара она переключает
+        «до / после обработки»; у чистого силоса её нет вовсе. */
+    flowBtn: function () {
+      var s = flowStep();
+      if (!s.btn) return el('div');
+      var label = (st.before && s.btnBack) ? s.btnBack : s.btn;
+      return button({ label: label, action: 'flowNext' }, 'sc-btn is-gold');
+    },
+    flowCard: function () {
+      var s = flowStep();
+      return panelEl({ cap: s.cap,
+        title: st.before && s.cardBefore ? s.cardBefore : s.card,
+        text: s.text });
+    },
+    flowShot: function () {
+      var s = flowStep();
+      var sh = st.before && s.shotBefore ? s.shotBefore : s.shot;
+      return sh ? shotEl(sh) : el('div');
+    },
+    /** Под снимком: плашка-статус или пояснение. */
+    flowFoot: function () {
+      var s = flowStep();
+      if (s.status) {
+        var ok = st.done && s.status.done;
+        return statusEl({ dot: true, warn: s.status.warn && !ok,
+          text: ok ? s.status.done : s.status.text });
+      }
+      if (!s.note) return el('div');
+      /* не is-note: этим классом помечены служебные пометки, стенд
+         прячет их (util.js), и пояснение пропадало вместе с ними */
+      return panelEl({ text: s.note, cls: 'is-foot' });
     },
 
     /* --- экран 16: продовольственный маршрут --- */
@@ -1469,6 +1679,22 @@
      ================================================================= */
 
   var ACTIONS = {
+    /* --- станция 4 --- */
+
+    /** Золотая кнопка: следующий шаг, а на последнем шаге ангара —
+        переключение «до / после обработки». */
+    flowNext: function () {
+      var s = flowStep();
+      if (s.compare) { st.before = !st.before; rerender(); return; }
+      goStep(Math.min(s.n + 1, flow().steps.length));
+    },
+
+    /** Касание решётки вентиляции на ангаре (шаг 6): закрыта. */
+    storeSpot: function () {
+      st.done = true;
+      rerender();
+    },
+
 
     /** Экран 6: показать демонстрационный расчёт дозы удобрений. */
     calcDose: function () { st.dose = true; rerender(); },

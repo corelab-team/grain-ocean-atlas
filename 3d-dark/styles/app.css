@@ -2268,6 +2268,8 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   height: 33.4px;
   margin: 0;
   padding: 0;
+  /* в кадре 613:2268 строки без разделителей (правка 30.09) */
+  border-bottom: 0;
   break-inside: avoid;
 }
 #sec-globe.is-country .product-item .pn {
