@@ -77,6 +77,7 @@
 
     bindScrollbar(els.list, $('sb-countries'));
     bindScrollbar(els.news, $('sb-news'));
+    bindScrollbar(els.countryProducts, $('sb-products'));
   }
 
   /* --------------------------- полосы прокрутки ---------------------------
@@ -107,7 +108,7 @@
 
   /** Пересчитать бегунки после перерисовки списков. */
   function syncScrollbars() {
-    ['sb-countries', 'sb-news'].forEach(function (id) {
+    ['sb-countries', 'sb-news', 'sb-products'].forEach(function (id) {
       var bar = $(id);
       if (bar && bar._sync) bar._sync();
     });
@@ -386,9 +387,11 @@
     syncScrollbars();
   }
 
-  /* -------------------------- карточка страны -------------------------- */
-
-  var MAX_PRODUCTS = 24;      // две колонки по 12 строк, остальное — «и ещё N»
+  /* -------------------------- карточка страны --------------------------
+     Список продукции — один столбец с прокруткой (правка заказчика от
+     30.09): в макете нет обрезки «и ещё N позиций», вместо неё в шапке
+     общая цифра видов продукции — считаем её по факту строк у страны,
+     а не хардкодим, чтобы у каждой страны было своё число. */
 
   function renderCountry(info) {
     els.countryName.textContent = info.name;
@@ -396,17 +399,19 @@
     els.countryRank.textContent = info.rank + ' место';
 
     els.countryProducts.innerHTML = '';
-    var shown = info.products.slice(0, MAX_PRODUCTS);
-    shown.forEach(function (p) {
+    info.products.forEach(function (p) {
       var item = U.el('div', 'product-item');
       item.appendChild(U.el('span', 'pn', U.capitalize(p.name)));
       item.appendChild(U.el('span', 'pv', U.fmtVolume(p.value)));
       els.countryProducts.appendChild(item);
     });
-    var rest = info.products.length - shown.length;
-    els.countryMore.textContent = rest > 0
-      ? ('и ещё ' + rest + ' ' + U.plural(rest, 'позиция', 'позиции', 'позиций'))
+    els.countryProducts.scrollTop = 0;
+
+    var n = info.products.length;
+    els.countryMore.textContent = n > 0
+      ? (n + ' ' + U.plural(n, 'вид', 'вида', 'видов') + ' продукции')
       : '';
+    syncScrollbars();
   }
 
   /* ------------------------------ состояния ------------------------------ */

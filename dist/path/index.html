@@ -626,7 +626,7 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
 
 .divider { height: 1px; background: var(--divider); margin: 26px 0 18px; }
 
-.product-grid { margin-top: 16px; columns: 2; column-gap: 26px; }
+.product-grid { margin-top: 16px; }
 .product-item {
   break-inside: avoid;
   display: flex;
@@ -1862,7 +1862,13 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe .sb.is-off { display: none; }
 #sec-globe #sb-countries { left: 441px; top: 348px; height: 668px; }
 #sec-globe #sb-news { left: 1836px; top: 488px; height: 371px; }
-#sec-globe:not(.is-map) .sb { display: none; }
+/* полоса списка продукции — те же координаты, что у #panel-products
+   (left:1325 + width:529 - padding:32 - width полосы:8 = 1814),
+   верх/высота — область .product-grid под шапкой (440; 401), см. там же */
+#sec-globe #sb-products { left: 1814px; top: 440px; height: 401px; }
+#sec-globe:not(.is-map) #sb-countries,
+#sec-globe:not(.is-map) #sb-news { display: none; }
+#sec-globe:not(.is-country) #sb-products { display: none; }
 #sec-globe.is-map.is-nonews #sb-news { display: none; }
 
 /* Пока в поиске что-то набрано, «Топ-5» уходит: его место занимает
@@ -2256,19 +2262,24 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   color: var(--muted);
   white-space: nowrap;
 }
-/* Таблица продукции: две колонки, самое большее по 12 строк (401 px) —
-   столько остаётся в панели под шапкой. Колонки выравниваются по высоте
-   (column-fill: balance): три продукта — это две строки, а не столбик
-   на всю панель; один продукт — одна строка. */
+/* Таблица продукции (правка заказчика от 30.09): один столбец, список
+   листается — самое большее 401 px остаётся в панели под шапкой, дальше
+   прокрутка. Полосу рисуем сами тем же способом, что у списка стран и
+   ленты новостей (см. «полосы прокрутки» выше и #sb-products ниже) —
+   значит она листается и пальцем, и колесом без отдельного кода: это
+   обычный overflow-y:auto, тач-скролл даёт сам браузер. Справа зазор
+   padding-right под полосу, чтобы цифра не пряталась под неё. */
 #sec-globe.is-country .product-grid {
+  box-sizing: border-box;
   margin: 4px 0 0;
   height: auto;
   max-height: 401px;
-  columns: 2;
-  column-gap: 16px;
-  column-fill: balance;
-  overflow: hidden;
+  padding-right: 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
+#sec-globe.is-country .product-grid::-webkit-scrollbar { width: 0; height: 0; display: none; }
 #sec-globe.is-country .product-item {
   display: flex;
   align-items: flex-start;
@@ -2277,9 +2288,6 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   height: 33.4px;
   margin: 0;
   padding: 0;
-  /* в кадре 613:2268 строки без разделителей (правка 30.09) */
-  border-bottom: 0;
-  break-inside: avoid;
 }
 #sec-globe.is-country .product-item .pn {
   flex: 1 1 auto;

@@ -1643,23 +1643,55 @@
     if (scr.nav) navSceneEl(scr, root);
   }
 
-  /** Заставка: коллаж, заголовок, подпись, касание в любом месте. */
+  /** Заставка: коллаж, заголовок, подпись, касание в любом месте.
+
+      Правка 30.09: заказчик прислал заставку роликом. В нём уже есть и
+      фон, и коллаж, и новые продукты — масло, спирт, кофе, — поэтому при
+      заданном поле video ни фоновая картинка, ни слой коллажа не рисуются:
+      иначе они лягут поверх ролика. Заголовок и подпись остаются текстом
+      страницы, в самом ролике их нет. Убрать ролик — убрать поле video,
+      прежние картинки останутся на месте. */
   function renderIntro(scr, root) {
     var cover = el('div', 'sc-cover');
-    if (scr.scene && scr.scene.pic && scr.scene.pic.img) {
-      var bg = new Image();
-      bg.className = 'sc-cover-bg';
-      bg.src = U.asset(scr.scene.pic.img);
-      bg.alt = '';
-      cover.appendChild(bg);
-    }
-    if (scr.collage && scr.collage.img) {
-      var box = el('div', 'sc-collage');
-      var im = new Image();
-      im.src = U.asset(scr.collage.img);
-      im.alt = scr.collage.cap || '';
-      box.appendChild(im);
-      cover.appendChild(box);
+    if (scr.video) {
+      var vv = document.createElement('video');
+      vv.className = 'sc-cover-bg';
+      vv.autoplay = true;
+      vv.loop = true;
+      vv.muted = true;
+      vv.defaultMuted = true;
+      vv.setAttribute('muted', '');        // автозапуск смотрит на атрибут, а не только на свойство
+      vv.playsInline = true;
+      vv.setAttribute('playsinline', '');
+      vv.preload = 'auto';
+      if (scr.videoPoster) vv.poster = U.asset(scr.videoPoster);
+      vv.style.pointerEvents = 'none';     // стенд сенсорный: касание должно доходить до слоя .sc-tap
+      vv.src = U.asset(scr.video);
+      cover.appendChild(vv);
+      vv.load();
+      /* play() зовём отложенно: сейчас cover ещё не в документе, а часть
+         браузеров не запускает автовоспроизведение, пока элемента нет
+         в дереве страницы. */
+      setTimeout(function () {
+        var p = vv.play();
+        if (p && p.catch) p.catch(function () { /* запустится по касанию */ });
+      }, 0);
+    } else {
+      if (scr.scene && scr.scene.pic && scr.scene.pic.img) {
+        var bg = new Image();
+        bg.className = 'sc-cover-bg';
+        bg.src = U.asset(scr.scene.pic.img);
+        bg.alt = '';
+        cover.appendChild(bg);
+      }
+      if (scr.collage && scr.collage.img) {
+        var box = el('div', 'sc-collage');
+        var im = new Image();
+        im.src = U.asset(scr.collage.img);
+        im.alt = scr.collage.cap || '';
+        box.appendChild(im);
+        cover.appendChild(box);
+      }
     }
     cover.appendChild(el('h1', 'sc-cover-title', scr.title));
     if (scr.sub) cover.appendChild(el('div', 'sc-cover-hint', scr.sub));

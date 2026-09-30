@@ -634,7 +634,7 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
 
 .divider { height: 1px; background: var(--divider); margin: 26px 0 18px; }
 
-.product-grid { margin-top: 16px; columns: 2; column-gap: 26px; }
+.product-grid { margin-top: 16px; }
 .product-item {
   break-inside: avoid;
   display: flex;
@@ -1870,7 +1870,13 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe .sb.is-off { display: none; }
 #sec-globe #sb-countries { left: 441px; top: 348px; height: 668px; }
 #sec-globe #sb-news { left: 1836px; top: 488px; height: 371px; }
-#sec-globe:not(.is-map) .sb { display: none; }
+/* полоса списка продукции — те же координаты, что у #panel-products
+   (left:1325 + width:529 - padding:32 - width полосы:8 = 1814),
+   верх/высота — область .product-grid под шапкой (440; 401), см. там же */
+#sec-globe #sb-products { left: 1814px; top: 440px; height: 401px; }
+#sec-globe:not(.is-map) #sb-countries,
+#sec-globe:not(.is-map) #sb-news { display: none; }
+#sec-globe:not(.is-country) #sb-products { display: none; }
 #sec-globe.is-map.is-nonews #sb-news { display: none; }
 
 /* Пока в поиске что-то набрано, «Топ-5» уходит: его место занимает
@@ -2264,19 +2270,24 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   color: var(--muted);
   white-space: nowrap;
 }
-/* Таблица продукции: две колонки, самое большее по 12 строк (401 px) —
-   столько остаётся в панели под шапкой. Колонки выравниваются по высоте
-   (column-fill: balance): три продукта — это две строки, а не столбик
-   на всю панель; один продукт — одна строка. */
+/* Таблица продукции (правка заказчика от 30.09): один столбец, список
+   листается — самое большее 401 px остаётся в панели под шапкой, дальше
+   прокрутка. Полосу рисуем сами тем же способом, что у списка стран и
+   ленты новостей (см. «полосы прокрутки» выше и #sb-products ниже) —
+   значит она листается и пальцем, и колесом без отдельного кода: это
+   обычный overflow-y:auto, тач-скролл даёт сам браузер. Справа зазор
+   padding-right под полосу, чтобы цифра не пряталась под неё. */
 #sec-globe.is-country .product-grid {
+  box-sizing: border-box;
   margin: 4px 0 0;
   height: auto;
   max-height: 401px;
-  columns: 2;
-  column-gap: 16px;
-  column-fill: balance;
-  overflow: hidden;
+  padding-right: 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
+#sec-globe.is-country .product-grid::-webkit-scrollbar { width: 0; height: 0; display: none; }
 #sec-globe.is-country .product-item {
   display: flex;
   align-items: flex-start;
@@ -2285,9 +2296,6 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   height: 33.4px;
   margin: 0;
   padding: 0;
-  /* в кадре 613:2268 строки без разделителей (правка 30.09) */
-  border-bottom: 0;
-  break-inside: avoid;
 }
 #sec-globe.is-country .product-item .pn {
   flex: 1 1 auto;
@@ -5786,8 +5794,11 @@ body.mon-screen { background: #141d23; }
 }
 
 /* слева внизу: «• 18 филиалов ЦОК АПК по всей России» над подсказкой;
-   точка — как точки лабораторий на карте. Рядом — значок головного
-   офиса: золотое кольцо, как его отметка на карте. */
+   точка — как точки лабораторий на карте. Приписку про головной офис
+   (значок is-hq и подпись рядом) убрали по правке заказчика от 30.09 —
+   элемент #pres-hq-key удаляется из DOM в drawPresCount() (monitoring.js),
+   правило .is-hq больше не используется и снято, чтобы не оставалось
+   мёртвого CSS. */
 #sec-monitoring .pres-count {
   position: absolute;
   z-index: 5;
@@ -5809,13 +5820,6 @@ body.mon-screen { background: #141d23; }
   height: 11px;
   background: #f6e3bb;
   box-shadow: 0 0 10px rgba(246, 227, 187, .6);
-}
-#sec-monitoring .pres-count .is-hq {
-  width: 20px;
-  height: 20px;
-  border: 2.5px solid #e6b416;
-  background: radial-gradient(circle, #f6e3bb 0 3.6px, rgba(14, 43, 46, .85) 4.4px);
-  box-shadow: 0 0 10px rgba(246, 212, 120, .5);
 }
 
 #sec-monitoring .pres-hint {
@@ -6792,6 +6796,8 @@ body.mon-screen { background: #141d23; }
   var LAB_DOT = '#F6E3BB';
   var HQ_RING = '#E6B416';             // отметка головного офиса: золотое кольцо
   var HQ_HIT = 26;                     // радиус касания отметки, px кадра
+  var DOT_GLOW_R = 22;                 // радиус свечения точки, px кадра (до dpr)
+  var DOT_GLOW_A = .55;                // альфа свечения в центре
 
   /* Основные (средневзвешенные) показатели зерна: поле в данных, подпись,
      единица, номер метки вокруг зерна (n) и пояснение. Значения берутся
@@ -7168,25 +7174,33 @@ body.mon-screen { background: #141d23; }
     ctx.globalAlpha = 1;
   }
 
-  /** Отметка головного офиса: золотое кольцо со светлой точкой,
-      у выбранной — кольцо крупнее и ярче, с мягким свечением. */
+  /** Мягкое свечение вокруг точки — штатное свойство самой точки,
+      одинаковое у всех отметок присутствия (филиалы и головной офис),
+      независимо от того, выбран регион или нет. x, y — px кадра. */
+  function drawDotGlow(x, y) {
+    var r = DOT_GLOW_R * dpr;
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(246,227,187,' + DOT_GLOW_A + ')');
+    g.addColorStop(1, 'rgba(246,227,187,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+  }
+
+  /** Отметка головного офиса: золотое кольцо со светлой точкой.
+      Свечение вокруг — то же самое, что у обычных точек филиалов
+      (drawDotGlow), и не меняется при выборе/снятии выделения — как
+      и у остальных точек, у которых своего состояния «выбрано» нет. */
   function drawHq() {
     if (!hq) return;
     var p = toCanvas(hq.x, hq.y);
     var x = p[0] * dpr, y = p[1] * dpr;
-    var on = presId === 'hq';
-    var r = (on ? 34 : 26) * dpr;
-    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, on ? 'rgba(246,212,120,.7)' : 'rgba(246,212,120,.45)');
-    g.addColorStop(1, 'rgba(246,212,120,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+    drawDotGlow(x, y);
     ctx.fillStyle = 'rgba(14,43,46,.85)';
-    ctx.beginPath(); ctx.arc(x, y, (on ? 11 : 9.5) * dpr, 0, 6.283); ctx.fill();
-    ctx.lineWidth = (on ? 3 : 2.5) * dpr;
-    ctx.strokeStyle = on ? '#F6E8C8' : HQ_RING;
+    ctx.beginPath(); ctx.arc(x, y, 9.5 * dpr, 0, 6.283); ctx.fill();
+    ctx.lineWidth = 2.5 * dpr;
+    ctx.strokeStyle = HQ_RING;
     ctx.stroke();
-    ctx.fillStyle = on ? HQ_RING : LAB_DOT;
+    ctx.fillStyle = LAB_DOT;
     ctx.beginPath(); ctx.arc(x, y, 4.2 * dpr, 0, 6.283); ctx.fill();
   }
 
@@ -7204,12 +7218,7 @@ body.mon-screen { background: #141d23; }
       var p = toCanvas(labs[i].x, labs[i].y);
       var x = p[0] * dpr, y = p[1] * dpr;
       if (x < -40 || y < -40 || x > MAP_W * dpr + 40 || y > MAP_H * dpr + 40) continue;
-      var r = 22 * dpr;
-      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, 'rgba(246,227,187,.55)');
-      g.addColorStop(1, 'rgba(246,227,187,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+      drawDotGlow(x, y);
       ctx.fillStyle = LAB_DOT;
       ctx.beginPath(); ctx.arc(x, y, 4.2 * dpr, 0, 6.283); ctx.fill();
     }
@@ -8373,7 +8382,12 @@ body.mon-screen { background: #141d23; }
     var n = pres && pres.regions ? Object.keys(pres.regions).length : 0;
     $('pres-count').textContent = n + ' ' + U.plural(n, 'филиал', 'филиала', 'филиалов') +
       ' ЦОК АПК по всей России';
-    $('pres-hq-key').style.display = pres && pres.hq ? '' : 'none';
+    // приписка «Головной офис» под картой убрана по правке заказчика
+    // от 30.09 — сам маркер убираем целиком, вместе с точкой-значком,
+    // чтобы не оставался осиротевший кружок и лишний отступ (flex gap
+    // считается только между видимыми элементами).
+    var hqKey = $('pres-hq-key');
+    if (hqKey && hqKey.parentNode) hqKey.parentNode.removeChild(hqKey);
   }
 
   /** Enter или кнопка «Искать»: открыть первое совпадение. */
