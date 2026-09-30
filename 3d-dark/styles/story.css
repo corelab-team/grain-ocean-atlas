@@ -60,6 +60,14 @@
   height: 100%;
   object-fit: cover;
 }
+/* видео-слой сцены (кадр 04) — тот же принцип, что у картинки выше */
+.sc-scene video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
 .sc-scene.is-vig::after {
   content: '';
   position: absolute;
@@ -71,6 +79,11 @@
 }
 /* кадр, поставленный по координатам выгрузки Figma */
 .sc-scene img.is-at { position: absolute; object-fit: fill; }
+.sc-scene video.is-at { position: absolute; object-fit: fill; }
+/* заплатка на ролике: закрывает водяной знак исходника, см. sceneLayer
+   в src/story.js. Цвет и градиент ставит скрипт — они берутся из самого
+   кадра, здесь только геометрия и то, что касания она не ловит. */
+.sc-scene-mask { position: absolute; z-index: 1; pointer-events: none; }
 /* предмет поверх сцены (беспилотник): прозрачный фон, вписывается целиком */
 .sc-scene img.is-obj { z-index: 1; object-fit: contain; }
 /* сцены с вырезанным фоном (остров Центра) ложатся целиком */

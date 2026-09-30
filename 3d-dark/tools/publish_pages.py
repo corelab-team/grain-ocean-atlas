@@ -114,18 +114,41 @@ monitoring = mon_src.read_bytes()
 app = app_src.read_bytes()
 (APP_OUT / "index.html").write_bytes(app)
 
-# Ролики глобусов и подложка суши 8192 в страницу не вшиваются (они тяжёлые) —
-# build_dist.py кладёт их рядом с собранным файлом. Переносим всё, что лежит
-# в dist/assets, к тем страницам, где есть раздел глобуса, теми же путями
-# assets/... Без этого шар на сайте останется без текстуры.
+# Тяжёлые файлы (ролики глобусов, подложка суши 8192, ролик сканирования
+# зерна) в страницу не вшиваются — build_dist.py кладёт их рядом с собранным
+# файлом, в dist/assets. Переносим их к страницам теми же путями assets/...,
+# иначе на сайте шар останется без текстуры, а экран скрининга без ролика.
+#
+# Раньше список страниц был задан руками — только те три, где есть раздел
+# глобуса. Когда на экране лабораторного скрининга появился свой ролик
+# (правка 30.09), страница презентации осталась без него: ролик не вшился
+# по размеру, а копировать его было некуда, и на сайте экран открывался
+# без видео.
+#
+# Определять нужные файлы по тексту собранной страницы нельзя: пути роликов
+# глобуса лежат в config.json, а он вшивается во все страницы подряд, даже
+# туда, где глобуса нет. Поэтому — явная таблица: какой странице что нужно.
+GLOBE_SIDE = ("assets/textures/earth_land_8192_figma.jpg",
+              "assets/video/globe-2016.mp4",
+              "assets/video/globe-2025.mp4")
+STORY_SIDE = ("assets/video/grain-scan.mp4",)
+SIDECARS = [
+    (APP_OUT, GLOBE_SIDE + STORY_SIDE),   # единое приложение: в нём все разделы
+    (GREEN_OUT, GLOBE_SIDE),
+    (OUT / "proto", GLOBE_SIDE),
+    (STORY_OUT, STORY_SIDE),
+    # экраны Блока 3 и мониторинга тяжёлых файлов не показывают
+]
 side = ROOT / "dist" / "assets"
 if side.is_dir():
-    for dest in (APP_OUT, GREEN_OUT, OUT / "proto"):
-        for src in side.rglob("*"):
-            if src.is_file():
-                out_file = dest / "assets" / src.relative_to(side)
-                out_file.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(src, out_file)
+    for dest, wanted in SIDECARS:
+        for rel in wanted:
+            src = ROOT / "dist" / rel
+            if not src.is_file():
+                continue
+            out_file = dest / rel
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, out_file)
 
 print("ok:", APP_OUT / "index.html", len(app) // 1024, "KB;",
       OUT / "index.html", len(wrapped) // 1024, "KB;",

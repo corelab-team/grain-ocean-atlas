@@ -172,7 +172,65 @@
     var vig = !NO_VIGNETTE[scr.id];
     var box = el('div', 'sc-scene' + (p && p.fit === 'contain' ? ' is-contain' : '') +
       (vig ? ' is-vig' : '') + (scr.grainAnim ? ' is-grain-anim' : ''));
-    if (p && p.img) {
+    /* Видео на сцене (кадр 04, лабораторный скрининг): заказчик прислал
+       ролик сканирования зерна вместо статичной картинки. Поле video
+       задаётся в справочнике рядом с pic — { src, at }; свои координаты
+       at нужны, потому что кадр ролика шире и сдвинут иначе, чем у
+       статичной картинки (см. ниже про водяной знак). Если video нет —
+       рисуется обычная картинка, как раньше. */
+    var vid = sceneFor(scr).video || null;
+    if (p && p.img && vid) {
+      var vv = document.createElement('video');
+      vv.autoplay = true;
+      vv.loop = true;
+      vv.muted = true;
+      vv.defaultMuted = true;
+      vv.setAttribute('muted', '');       // автозапуск в некоторых браузерах смотрит на атрибут, а не на свойство
+      vv.playsInline = true;
+      vv.setAttribute('playsinline', '');
+      vv.preload = 'auto';
+      vv.poster = U.asset(p.img);         // статичный кадр виден, пока ролик не загрузился
+      vv.style.pointerEvents = 'none';    // стенд сенсорный — слой видео не должен ловить касания
+      var vat = vid.at || p.at;
+      if (vat) {
+        vv.className = 'is-at';
+        vv.style.left = vat[0] + 'px';
+        vv.style.top = vat[1] + 'px';
+        vv.style.width = vat[2] + 'px';
+        vv.style.height = vat[3] + 'px';
+      }
+      vv.src = U.asset(vid.src);
+      box.appendChild(vv);
+      vv.load();
+      /* play() зовём отложенно: сейчас box ещё не вставлен в документ
+         (это сделает вызывающий код чуть позже), а часть браузеров
+         не запускает автовоспроизведение у ролика, пока его нет в
+         дереве страницы. setTimeout(0) откладывает вызов до конца
+         текущего цикла отрисовки, когда сцена уже на странице. */
+      setTimeout(function () {
+        var playPromise = vv.play();
+        if (playPromise && playPromise.catch) playPromise.catch(function () { /* автозапуск включится по касанию */ });
+      }, 0);
+      /* Заплатка поверх ролика: гасит вшитый в исходник водяной знак.
+         Поле mask — [x, y, ширина, высота] в координатах блока сцены,
+         цвет берётся из самого кадра (см. справочник). Пятно мягкое:
+         в центре сплошное, к краям сходит на нет, поэтому на ровном
+         тёмном фоне ролика его не видно. Появится чистый экспорт —
+         достаточно убрать mask в справочнике. */
+      if (vid.mask) {
+        var mk = el('div', 'sc-scene-mask');
+        mk.style.left = vid.mask[0] + 'px';
+        mk.style.top = vid.mask[1] + 'px';
+        mk.style.width = vid.mask[2] + 'px';
+        mk.style.height = vid.mask[3] + 'px';
+        if (vid.maskColor) {
+          mk.style.background = 'radial-gradient(ellipse at center, ' +
+            vid.maskColor + ' 0%, ' + vid.maskColor + ' 62%, ' +
+            vid.maskColor.replace('rgb(', 'rgba(').replace(')', ', 0)') + ' 100%)';
+        }
+        box.appendChild(mk);
+      }
+    } else if (p && p.img) {
       var im = new Image();
       im.src = U.asset(p.img);
       im.alt = p.cap || '';
@@ -439,7 +497,14 @@
     mushroom: 'assets/concept/svg/ico-mushroom.svg',
     drop: 'assets/concept/svg/ico-drop.svg',
     eco: 'assets/concept/svg/ico-eco.svg',
-    ant: 'assets/concept/svg/ico-ant.svg'
+    ant: 'assets/concept/svg/ico-ant.svg',
+    /* Экран 9, кадр 08c: сетка карточек сорняков — готовые PNG
+       с прозрачным фоном (белый штриховой рисунок), а не svg из общей
+       выгрузки, поэтому лежат в assets/photos/concept, не в svg/. */
+    weedAmbrosia: 'assets/photos/concept/weed-icon-ambrosia.png',
+    weedBorshchevik: 'assets/photos/concept/weed-icon-borshchevik.png',
+    weedGorchak: 'assets/photos/concept/weed-icon-gorchak.png',
+    weedPovilika: 'assets/photos/concept/weed-icon-povilika.png'
   };
 
   function iconEl(name) {
@@ -984,13 +1049,28 @@
        «в разработке», и касания не ловят. */
     weedBtnSelf: function () {
       var on = tabKey() === 'iso';
-      return weedBtn(on ? 'Ищем сорняки' : 'Посмотреть самостоятельно',
+      // правка заказчика 30.09 (кадр 08b): нажатая подпись — «Смотрим»
+      return weedBtn(on ? 'Смотрим' : 'Посмотреть самостоятельно',
         'weedSelf', on);
     },
     weedBtnDrone: function () {
       var on = tabKey() === 'drone';
       return weedBtn(on ? 'Дрон запущен' : 'Запустить обзор с БПЛА',
         'weedDrone', on);
+    },
+
+    /* --- экран 9, кадр 08c: сетка 2x2 карточек сорняков под панелью
+           «Зачем это нужно», только в состоянии drone --- */
+    weedCardsGrid: function () {
+      if (tabKey() !== 'drone') return null;
+      var box = gridEl({ src: 'weedCards', cols: 2, ico: true, gap: 4, noClick: true });
+      /* в кадре сетка уже колонки (426 px против 514 у панели выше) и
+         стоит вплотную к правому краю — своя ширина плюс выравнивание
+         по правому краю флекс-колонки (сама колонка растягивает детей
+         на всю ширину по умолчанию, см. .sc-col в story.css) */
+      box.style.width = '426px';
+      box.style.alignSelf = 'flex-end';
+      return box;
     },
 
     /* --- экран 12: подготовка складов, пять шагов --- */
@@ -1112,7 +1192,14 @@
     if (spec.edge != null) box.style[side === 'left' ? 'left' : 'right'] = spec.edge + 'px';
     if (top || spec.top) box.style.top = (top || spec.top) + 'px';
     if (spec.gap != null) box.style.gap = spec.gap + 'px';
-    (spec.items || []).forEach(function (item) { box.appendChild(slotEl(item)); });
+    /* dyn-слот может вернуть null (сетка карточек сорняков, экран 9,
+       видна только в одном состоянии сцены) — такой слот просто
+       не вставляем, а не заглушку пустым div: иначе flex-gap колонки
+       добавлял бы призрачный отступ в состояниях без сетки. */
+    (spec.items || []).forEach(function (item) {
+      var node = slotEl(item);
+      if (node) box.appendChild(node);
+    });
     return box;
   }
 
@@ -1308,7 +1395,16 @@
     if (scr.markers) markersEl(scr, root);
     if (scr.radios) radiosEl(scr, root);
     if (scr.overlay && OVERLAYS[scr.overlay]) OVERLAYS[scr.overlay](root);
-    if (scr.weedsByTab && scr.weedsByTab[tabKey()]) weedsEl(scr.weedsByTab[tabKey()], root, scr.weedsTotal);
+    /* .length-проверка, а не просто truthy: состояние photo экрана 9
+       (кадр 08a, чистое поле) держит weedsByTab.photo пустым массивом —
+       меток там нет по сценарию. Без проверки длины weedsEl всё равно
+       вызывался бы и через countWeeds включал счётчик, если сорняки уже
+       найдены в другом состоянии (st.found общий на все вкладки) —
+       на чистом поле счётчика в кадре нет вообще, поэтому просто
+       не заходим в весь блок, когда меток нет. */
+    if (scr.weedsByTab && scr.weedsByTab[tabKey()] && scr.weedsByTab[tabKey()].length) {
+      weedsEl(scr.weedsByTab[tabKey()], root, scr.weedsTotal);
+    }
     if (scr.title || scr.eyebrow) root.appendChild(headEl(scr));
     if (scr.hero) root.appendChild(el('div', 'sc-hero', scr.hero));
     if (scr.tabsFrom) root.appendChild(tabsSceneEl(scr));
@@ -1366,10 +1462,16 @@
     /** Экран 6: показать демонстрационный расчёт дозы удобрений. */
     calcDose: function () { st.dose = true; rerender(); },
 
-    /** Экран 9: переключение «заросшее поле → поле сверху». */
+    /** Экран 9: переключение «поле издалека → поле вблизи, ищем сами».
+        st.found общий на все состояния сцены, поэтому при входе в поиск
+        его сбрасываем: иначе посетитель, который сначала запустил БПЛА
+        (тот отмечает все три), а потом вернулся искать сам, увидел бы
+        «Найдено 3 из 3» над полем, где кликабельных куста два. На стенде
+        кнопки жмут в любом порядке, так что случай рабочий. */
     weedSelf: function () {
       if (cur.tabsWip) return;
       st.tab = tabKey() === 'iso' ? 'photo' : 'iso';
+      if (st.tab === 'iso') st.found = {};
       rerender();
     },
 
