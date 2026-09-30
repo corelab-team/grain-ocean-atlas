@@ -624,7 +624,7 @@ button { border: 0; background: none; cursor: pointer; padding: 0; }
 
 .divider { height: 1px; background: var(--divider); margin: 26px 0 18px; }
 
-.product-grid { margin-top: 16px; columns: 2; column-gap: 26px; }
+.product-grid { margin-top: 16px; }
 .product-item {
   break-inside: avoid;
   display: flex;
@@ -1860,7 +1860,13 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe .sb.is-off { display: none; }
 #sec-globe #sb-countries { left: 441px; top: 348px; height: 668px; }
 #sec-globe #sb-news { left: 1836px; top: 488px; height: 371px; }
-#sec-globe:not(.is-map) .sb { display: none; }
+/* полоса списка продукции — те же координаты, что у #panel-products
+   (left:1325 + width:529 - padding:32 - width полосы:8 = 1814),
+   верх/высота — область .product-grid под шапкой (440; 401), см. там же */
+#sec-globe #sb-products { left: 1814px; top: 440px; height: 401px; }
+#sec-globe:not(.is-map) #sb-countries,
+#sec-globe:not(.is-map) #sb-news { display: none; }
+#sec-globe:not(.is-country) #sb-products { display: none; }
 #sec-globe.is-map.is-nonews #sb-news { display: none; }
 
 /* Пока в поиске что-то набрано, «Топ-5» уходит: его место занимает
@@ -2254,19 +2260,24 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   color: var(--muted);
   white-space: nowrap;
 }
-/* Таблица продукции: две колонки, самое большее по 12 строк (401 px) —
-   столько остаётся в панели под шапкой. Колонки выравниваются по высоте
-   (column-fill: balance): три продукта — это две строки, а не столбик
-   на всю панель; один продукт — одна строка. */
+/* Таблица продукции (правка заказчика от 30.09): один столбец, список
+   листается — самое большее 401 px остаётся в панели под шапкой, дальше
+   прокрутка. Полосу рисуем сами тем же способом, что у списка стран и
+   ленты новостей (см. «полосы прокрутки» выше и #sb-products ниже) —
+   значит она листается и пальцем, и колесом без отдельного кода: это
+   обычный overflow-y:auto, тач-скролл даёт сам браузер. Справа зазор
+   padding-right под полосу, чтобы цифра не пряталась под неё. */
 #sec-globe.is-country .product-grid {
+  box-sizing: border-box;
   margin: 4px 0 0;
   height: auto;
   max-height: 401px;
-  columns: 2;
-  column-gap: 16px;
-  column-fill: balance;
-  overflow: hidden;
+  padding-right: 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
 }
+#sec-globe.is-country .product-grid::-webkit-scrollbar { width: 0; height: 0; display: none; }
 #sec-globe.is-country .product-item {
   display: flex;
   align-items: flex-start;
@@ -2275,7 +2286,6 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   height: 33.4px;
   margin: 0;
   padding: 0;
-  break-inside: avoid;
 }
 #sec-globe.is-country .product-item .pn {
   flex: 1 1 auto;
@@ -4621,7 +4631,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 
     <section id="panel-products" class="panel">
       <div class="prod-head">
-        <span>Продукция, тыс. т</span>
+        <span>Виды продукции, тыс.т</span>
         <span id="country-more" class="product-more"></span>
       </div>
       <div id="country-products" class="product-grid"></div>
@@ -4646,6 +4656,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
          места и размеры из кадра, рисует src/ui.js -->
     <div id="sb-countries" class="sb"><i></i></div>
     <div id="sb-news" class="sb"><i></i></div>
+    <div id="sb-products" class="sb"><i></i></div>
 
     <div id="touch-hint">Коснитесь страны или маршрута, чтобы узнать больше</div>
 
@@ -7457,6 +7468,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
     bindScrollbar(els.list, $('sb-countries'));
     bindScrollbar(els.news, $('sb-news'));
+    bindScrollbar(els.countryProducts, $('sb-products'));
   }
 
   /* --------------------------- полосы прокрутки ---------------------------
@@ -7487,7 +7499,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
   /** Пересчитать бегунки после перерисовки списков. */
   function syncScrollbars() {
-    ['sb-countries', 'sb-news'].forEach(function (id) {
+    ['sb-countries', 'sb-news', 'sb-products'].forEach(function (id) {
       var bar = $(id);
       if (bar && bar._sync) bar._sync();
     });
@@ -7766,9 +7778,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     syncScrollbars();
   }
 
-  /* -------------------------- карточка страны -------------------------- */
-
-  var MAX_PRODUCTS = 24;      // две колонки по 12 строк, остальное — «и ещё N»
+  /* -------------------------- карточка страны --------------------------
+     Список продукции — один столбец с прокруткой (правка заказчика от
+     30.09): в макете нет обрезки «и ещё N позиций», вместо неё в шапке
+     общая цифра видов продукции — считаем её по факту строк у страны,
+     а не хардкодим, чтобы у каждой страны было своё число. */
 
   function renderCountry(info) {
     els.countryName.textContent = info.name;
@@ -7776,17 +7790,19 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     els.countryRank.textContent = info.rank + ' место';
 
     els.countryProducts.innerHTML = '';
-    var shown = info.products.slice(0, MAX_PRODUCTS);
-    shown.forEach(function (p) {
+    info.products.forEach(function (p) {
       var item = U.el('div', 'product-item');
       item.appendChild(U.el('span', 'pn', U.capitalize(p.name)));
       item.appendChild(U.el('span', 'pv', U.fmtVolume(p.value)));
       els.countryProducts.appendChild(item);
     });
-    var rest = info.products.length - shown.length;
-    els.countryMore.textContent = rest > 0
-      ? ('и ещё ' + rest + ' ' + U.plural(rest, 'позиция', 'позиции', 'позиций'))
+    els.countryProducts.scrollTop = 0;
+
+    var n = info.products.length;
+    els.countryMore.textContent = n > 0
+      ? (n + ' ' + U.plural(n, 'вид', 'вида', 'видов') + ' продукции')
       : '';
+    syncScrollbars();
   }
 
   /* ------------------------------ состояния ------------------------------ */

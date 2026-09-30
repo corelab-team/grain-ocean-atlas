@@ -125,6 +125,8 @@
   var LAB_DOT = '#F6E3BB';
   var HQ_RING = '#E6B416';             // отметка головного офиса: золотое кольцо
   var HQ_HIT = 26;                     // радиус касания отметки, px кадра
+  var DOT_GLOW_R = 22;                 // радиус свечения точки, px кадра (до dpr)
+  var DOT_GLOW_A = .55;                // альфа свечения в центре
 
   /* Основные (средневзвешенные) показатели зерна: поле в данных, подпись,
      единица, номер метки вокруг зерна (n) и пояснение. Значения берутся
@@ -501,25 +503,33 @@
     ctx.globalAlpha = 1;
   }
 
-  /** Отметка головного офиса: золотое кольцо со светлой точкой,
-      у выбранной — кольцо крупнее и ярче, с мягким свечением. */
+  /** Мягкое свечение вокруг точки — штатное свойство самой точки,
+      одинаковое у всех отметок присутствия (филиалы и головной офис),
+      независимо от того, выбран регион или нет. x, y — px кадра. */
+  function drawDotGlow(x, y) {
+    var r = DOT_GLOW_R * dpr;
+    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, 'rgba(246,227,187,' + DOT_GLOW_A + ')');
+    g.addColorStop(1, 'rgba(246,227,187,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+  }
+
+  /** Отметка головного офиса: золотое кольцо со светлой точкой.
+      Свечение вокруг — то же самое, что у обычных точек филиалов
+      (drawDotGlow), и не меняется при выборе/снятии выделения — как
+      и у остальных точек, у которых своего состояния «выбрано» нет. */
   function drawHq() {
     if (!hq) return;
     var p = toCanvas(hq.x, hq.y);
     var x = p[0] * dpr, y = p[1] * dpr;
-    var on = presId === 'hq';
-    var r = (on ? 34 : 26) * dpr;
-    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, on ? 'rgba(246,212,120,.7)' : 'rgba(246,212,120,.45)');
-    g.addColorStop(1, 'rgba(246,212,120,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+    drawDotGlow(x, y);
     ctx.fillStyle = 'rgba(14,43,46,.85)';
-    ctx.beginPath(); ctx.arc(x, y, (on ? 11 : 9.5) * dpr, 0, 6.283); ctx.fill();
-    ctx.lineWidth = (on ? 3 : 2.5) * dpr;
-    ctx.strokeStyle = on ? '#F6E8C8' : HQ_RING;
+    ctx.beginPath(); ctx.arc(x, y, 9.5 * dpr, 0, 6.283); ctx.fill();
+    ctx.lineWidth = 2.5 * dpr;
+    ctx.strokeStyle = HQ_RING;
     ctx.stroke();
-    ctx.fillStyle = on ? HQ_RING : LAB_DOT;
+    ctx.fillStyle = LAB_DOT;
     ctx.beginPath(); ctx.arc(x, y, 4.2 * dpr, 0, 6.283); ctx.fill();
   }
 
@@ -537,12 +547,7 @@
       var p = toCanvas(labs[i].x, labs[i].y);
       var x = p[0] * dpr, y = p[1] * dpr;
       if (x < -40 || y < -40 || x > MAP_W * dpr + 40 || y > MAP_H * dpr + 40) continue;
-      var r = 22 * dpr;
-      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-      g.addColorStop(0, 'rgba(246,227,187,.55)');
-      g.addColorStop(1, 'rgba(246,227,187,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+      drawDotGlow(x, y);
       ctx.fillStyle = LAB_DOT;
       ctx.beginPath(); ctx.arc(x, y, 4.2 * dpr, 0, 6.283); ctx.fill();
     }
@@ -1706,7 +1711,12 @@
     var n = pres && pres.regions ? Object.keys(pres.regions).length : 0;
     $('pres-count').textContent = n + ' ' + U.plural(n, 'филиал', 'филиала', 'филиалов') +
       ' ЦОК АПК по всей России';
-    $('pres-hq-key').style.display = pres && pres.hq ? '' : 'none';
+    // приписка «Головной офис» под картой убрана по правке заказчика
+    // от 30.09 — сам маркер убираем целиком, вместе с точкой-значком,
+    // чтобы не оставался осиротевший кружок и лишний отступ (flex gap
+    // считается только между видимыми элементами).
+    var hqKey = $('pres-hq-key');
+    if (hqKey && hqKey.parentNode) hqKey.parentNode.removeChild(hqKey);
   }
 
   /** Enter или кнопка «Искать»: открыть первое совпадение. */

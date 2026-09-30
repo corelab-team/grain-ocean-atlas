@@ -1294,8 +1294,11 @@ body.mon-screen { background: #141d23; }
 }
 
 /* слева внизу: «• 18 филиалов ЦОК АПК по всей России» над подсказкой;
-   точка — как точки лабораторий на карте. Рядом — значок головного
-   офиса: золотое кольцо, как его отметка на карте. */
+   точка — как точки лабораторий на карте. Приписку про головной офис
+   (значок is-hq и подпись рядом) убрали по правке заказчика от 30.09 —
+   элемент #pres-hq-key удаляется из DOM в drawPresCount() (monitoring.js),
+   правило .is-hq больше не используется и снято, чтобы не оставалось
+   мёртвого CSS. */
 #sec-monitoring .pres-count {
   position: absolute;
   z-index: 5;
@@ -1317,13 +1320,6 @@ body.mon-screen { background: #141d23; }
   height: 11px;
   background: #f6e3bb;
   box-shadow: 0 0 10px rgba(246, 227, 187, .6);
-}
-#sec-monitoring .pres-count .is-hq {
-  width: 20px;
-  height: 20px;
-  border: 2.5px solid #e6b416;
-  background: radial-gradient(circle, #f6e3bb 0 3.6px, rgba(14, 43, 46, .85) 4.4px);
-  box-shadow: 0 0 10px rgba(246, 212, 120, .5);
 }
 
 #sec-monitoring .pres-hint {
