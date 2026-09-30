@@ -131,7 +131,8 @@ app = app_src.read_bytes()
 GLOBE_SIDE = ("assets/textures/earth_land_8192_figma.jpg",
               "assets/video/globe-2016.mp4",
               "assets/video/globe-2025.mp4")
-STORY_SIDE = ("assets/video/grain-scan.mp4",)
+STORY_SIDE = ("assets/video/grain-scan.mp4",
+              "assets/video/intro-loop.mp4")
 SIDECARS = [
     (APP_OUT, GLOBE_SIDE + STORY_SIDE),   # единое приложение: в нём все разделы
     (GREEN_OUT, GLOBE_SIDE),
