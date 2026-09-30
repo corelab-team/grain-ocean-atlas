@@ -80,6 +80,8 @@ mimetypes.add_type("font/woff", ".woff")
 
 # ссылки на файлы из assets/ ищутся в CSS и в скриптах
 ASSET_RE = re.compile(r"assets/[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|svg|woff2?|mp4|webm)")
+# начало пути в assets/, к которому что-то приклеивают: 'assets/photos/' + name
+CONCAT_ASSET_RE = re.compile(r"[\"']assets/[^\"'\n]*[\"']\s*\+")
 
 
 def read(path):
@@ -212,6 +214,13 @@ def main(theme=None, out_path=None, entry=None, max_mb=None):
     inlined = []
     assets = {}
     for rel, code in zip(scripts, codes):
+        # Путь, склеенный из кусков ('assets/...' + имя), сборка не видит:
+        # файл не вшивается, и на сайте вместо картинки пустой значок
+        # (так пропали снимки справа на станции 4, правки 30.09).
+        m = CONCAT_ASSET_RE.search(code)
+        if m:
+            die("в %s путь к файлу склеивается из кусков: %s — сборка его "
+                "не найдёт, пишите путь целиком." % (rel, m.group(0)))
         for a in ASSET_RE.findall(code):
             assets.setdefault(a, None)
         inlined.append("<!-- %s -->\n<script>\n%s\n</script>" % (rel, code))
