@@ -89,9 +89,9 @@
      регионов в центре контура стоит золотой колосок (drawStrongRye). */
   /* Цвета сняты по пикселям кадра 27-monitoring-2026 (макет 553:1480):
      заливки там сплошные, без просвета фона. */
-  var C_DATA = [20, 68, 52];           // #144434 — тёмно-зелёный
+  var C_DATA = [66, 89, 101];           // #425965 — slate
   var C_STRONG = [230, 180, 22];       // #e6b416 — цвет колоска и метки в легенде
-  var C_NONE = [42, 53, 51];           // #2a3533
+  var C_NONE = [43, 49, 56];           // #2b3138
 
   /* Регион считается охваченным госмониторингом, если за выбранный год
      в таблицах заказчика есть цифры хотя бы по одному виду пшеницы.
@@ -544,7 +544,7 @@
      из макета 553:1480. Рисунок в поле 24x60, тот же путь стоит в легенде
      (monitoring.html / app.html, svg.is-rye). Размер постоянный,
      в пикселях кадра: при зуме колоски не раздуваются. На карте колосок
-     10x24, как в макете. */
+     14.4x36, с плавным золотым бликом. */
   var RYE = 'M12 1C14.6 1 15.6 4.5 15.6 8C15.6 11.5 14 14.5 12 15.5C10 14.5 8.4 11.5 8.4 8C8.4 4.5 9.4 1 12 1Z' +
     'M11.3 22.5C6 22.5 1.2 19 1.2 13.5C6.5 13.5 11.3 16.5 11.3 22.5Z' +
     'M12.7 22.5C18 22.5 22.8 19 22.8 13.5C17.5 13.5 12.7 16.5 12.7 22.5Z' +
@@ -555,12 +555,13 @@
     'M11.3 50.1C6 50.1 1.2 46.6 1.2 41.1C6.5 41.1 11.3 44.1 11.3 50.1Z' +
     'M12.7 50.1C18 50.1 22.8 46.6 22.8 41.1C17.5 41.1 12.7 44.1 12.7 50.1Z' +
     'M10.8 49H13.2V59.5H10.8Z';
-  var RYE_SCALE = 0.4;                 // 24x60 -> 9.6x24 px кадра
+  var RYE_SCALE = 0.60;                 // 24x60 -> 14.4x36 px кадра
   var ryePath = null;
 
   function drawStrongRye() {
     if (!ryePath) ryePath = new Path2D(RYE);
-    var sc = RYE_SCALE * dpr;
+    var pulse = (1 + Math.sin(performance.now() / 650) * .08);
+    var sc = RYE_SCALE * dpr * pulse;
     ctx.fillStyle = rgb(C_STRONG);
     for (var i = 0; i < shapes.length; i++) {
       var s = shapes[i];
@@ -570,8 +571,14 @@
       if (x < -40 || y < -40 || x > MAP_W * dpr + 40 || y > MAP_H * dpr + 40) continue;
       ctx.globalAlpha = (hits && !hits[s.id]) ? 0.3 : 1;
       // середина колоска — в центре контура
+      ctx.save();
+      ctx.fillStyle = 'rgba(13,19,27,.82)';
+      ctx.beginPath(); ctx.ellipse(x, y, 13 * dpr, 24 * dpr, 0, 0, Math.PI * 2); ctx.fill();
       ctx.setTransform(sc, 0, 0, sc, x - 12 * sc, y - 30 * sc);
-      ctx.fill(ryePath);
+      var gold = ctx.createLinearGradient(0, 0, 24, 60);
+      gold.addColorStop(0, '#fff5cf'); gold.addColorStop(.5 + Math.sin(performance.now()/800)*.2, '#ffd55c'); gold.addColorStop(1, '#d89121');
+      ctx.fillStyle = gold; ctx.shadowColor = '#ffd269'; ctx.shadowBlur = 8 * dpr;
+      ctx.fill(ryePath); ctx.restore();
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -598,7 +605,7 @@
     }
   }
 
-  var rafId = 0;                       // 0 — цикл не крутится
+  var rafId = 0, ryeTime = 0;                       // 0 — цикл не крутится
 
   /** Запустить цикл отрисовки карты (idempotent). */
   function startLoop() {
@@ -625,6 +632,7 @@
       need = true;
       if (t >= 1) anim = null;
     }
+    if (screen === 'map' && now - ryeTime > 80) { need = true; ryeTime = now; }
     if (need) { need = false; draw(); placeCall(); }
     frames++;
     if (now - fpsT > 1000) { fps = frames * 1000 / (now - fpsT); frames = 0; fpsT = now; }
@@ -807,7 +815,31 @@
     return hits ? arr : arr.slice(0, 10);
   }
 
+  function drawSuggestions() {
+    var box = $('search-results');
+    if (!box) return;
+    box.textContent = '';
+    box.hidden = !query;
+    $('search').setAttribute('aria-expanded', query ? 'true' : 'false');
+    if (!query) return;
+    var arr = listed();
+    box.appendChild(el('div', 'mn-result-count', 'Найдено регионов: ' + arr.length));
+    if (!arr.length) box.appendChild(el('div', 'mn-result-empty', 'Ничего не найдено'));
+    arr.forEach(function (s) {
+      var b = el('button', 'mn-result'); b.type = 'button';
+      b.appendChild(el('span', null, s.name));
+      b.appendChild(el('small', null, hasMon(s.id) ? 'Проводится госмониторинг' : 'Не проводится госмониторинг'));
+      b.addEventListener('click', function () {
+        resetIdle(); if (global.Keyboard) global.Keyboard.close();
+        box.hidden = true; $('search').setAttribute('aria-expanded', 'false');
+        if (hasMon(s.id)) openRegion(s.id); else { focusOn(s.id, 2.2); pinTip(s.id); }
+      });
+      box.appendChild(b);
+    });
+  }
+
   function drawTop() {
+    drawSuggestions();
     var arr = listed();
     $('top-head').textContent = query
       ? 'Найдено регионов: ' + arr.length
@@ -1017,15 +1049,14 @@
       (b.strong && strongOn() ? '  ·  регион с сильной пшеницей' : '')));
 
     // было «Урожай 2026» — то же самое слово убрали и здесь (см. выше)
-    bigNum($('gross-body'), fmt1(b.gross), 'тыс. т', String(year) + ' год');
+    bigNum($('gross-body'), fmt1(b.gross), 'тыс. т');
     bigNum($('surv-body'), fmt1(b.surveyed), 'тыс. т',
       b.cover != null ? dec1(b.cover) + ' % валового сбора' : '');
 
     // классы: название, объём в тоннах от обследованного и доля.
     // Полосок в кадре нет — только числа. Классы, которых в регионе
     // не нашли, не показываем: пустых строк в кадре нет.
-    $('cls-sub').textContent = 'Доля от обследованного объёма\n' +
-      fmt1(b.surveyed) + ' тыс. т';
+    $('cls-sub').textContent = '';
     // отметку о соответствии/несоответствии ГОСТу из карточки региона убрали
     // (правка заказчика 29.09, слайд 1 презентации): в интерфейсе региона
     // её быть не должно. Общий процент по стране — отдельная плашка слева
@@ -1396,6 +1427,8 @@
 
   function setUrl() {
     var p = { year: year };
+    var palette = ROOT.getAttribute('data-palette');
+    if (palette && palette !== 'slate') p.palette = palette;
     if (screen === 'presence') {
       p.view = 'presence';
       if (presId) p.region = presId;     // hq — головной офис
@@ -1667,6 +1700,11 @@
 
       var q = U.query('monitoring');
       if (q.idle === '0') idleOff = true;
+      var palette = q.palette || (CFG.monitoring && CFG.monitoring.palette) || 'slate';
+      var palettes = { slate: [[66,89,101],[43,49,56]], navy: [[41,73,111],[37,43,60]], earth: [[105,91,69],[52,47,43]] };
+      if (!palettes[palette]) palette = 'slate';
+      ROOT.setAttribute('data-palette', palette);
+      C_DATA = palettes[palette][0]; C_NONE = palettes[palette][1];
       year = mon.years.indexOf(parseInt(q.year, 10)) >= 0
         ? parseInt(q.year, 10)
         : mon.years[mon.years.length - 1];
@@ -1682,14 +1720,25 @@
 
       $('top-body').addEventListener('scroll', syncTopBar, { passive: true });
 
+      var suggestions = el('div', 'mn-results');
+      suggestions.id = 'search-results'; suggestions.hidden = true;
+      suggestions.setAttribute('aria-label', 'Результаты поиска регионов');
+      $('search').parentNode.appendChild(suggestions);
+      $('search').setAttribute('aria-controls', 'search-results');
+      $('search').setAttribute('aria-expanded', 'false');
+      drawSuggestions();
       $('search').addEventListener('input', function () {
         resetIdle();
         setQuery(this.value.trim());
         drawTop();
         need = true;
       });
+      $('search').addEventListener('focus', drawSuggestions);
       $('search').addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') { $('search-results').hidden = true; this.setAttribute('aria-expanded', 'false'); return; }
         if (e.key !== 'Enter') return;
+        $('search-results').hidden = true; this.setAttribute('aria-expanded', 'false');
+        if (global.Keyboard) global.Keyboard.close();
         openFirst();
       });
       $('back-map').addEventListener('click', function () { resetIdle(); backToMap(); });
@@ -1816,7 +1865,8 @@
         // и плитка «Регионы присутствия» (?section=presence)
         if (mon) {
           if (params && params.view === 'presence') openPresence(params.region);
-          else if (screen === 'presence') backToMap();
+          else if (params && params.region) openRegion(params.region);
+          else toAttractor();
         }
         need = true;
         startLoop();

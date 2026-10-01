@@ -48,6 +48,8 @@
   var hist = [];                         // история переходов для «назад»
   var idleTimer = null, idleOff = false;
   var busy = false;
+  var scanTimers = [];
+  function cancelDroneScan() { scanTimers.forEach(clearTimeout); scanTimers = []; }
 
   /* =================================================================
      Состояние экрана: вкладка, выбор, шаг
@@ -69,6 +71,7 @@
   function button(b, cls) {
     var n = el('button', cls || 'sc-btn', b.label);
     n.type = 'button';
+    if (b.action) n.setAttribute('data-action', b.action);
     n.addEventListener('click', function () {
       resetIdle();
       if (b.to === 'back') back();
@@ -184,9 +187,9 @@
     vv.playsInline = true;
     vv.setAttribute('playsinline', '');
     vv.preload = 'auto';
-    vv.poster = U.asset(p.img);         // статичный кадр виден, пока ролик не загрузился
+    if (p && p.img) vv.poster = U.asset(p.img);         // статичный кадр виден, пока ролик не загрузился
     vv.style.pointerEvents = 'none';    // стенд сенсорный — слой видео не должен ловить касания
-    var vat = vid.at || p.at;
+    var vat = vid.at || (p && p.at);
     if (vat) {
       vv.className = 'is-at';
       vv.style.left = vat[0] + 'px';
@@ -223,7 +226,7 @@
        статичной картинки (см. ниже про водяной знак). Если video нет —
        рисуется обычная картинка, как раньше. */
     var vid = sceneFor(scr).video || null;
-    if (p && p.img && vid) {
+    if (vid) {
       /* Правка заказчика 30.09: выбор показателя на лабораторном
          скрининге перерисовывает экран целиком, и ролик каждый раз
          начинался сначала. Поэтому элемент видео живёт в состоянии
@@ -341,6 +344,12 @@
     if (p.sub) n.appendChild(el('div', 'sc-panel-sub', p.sub));
     if (p.text) n.appendChild(el('p', 'sc-panel-p', p.text));
     if (p.big) n.appendChild(el('div', 'sc-big', p.big));
+    if (p.picture) n.appendChild(shotEl({ img: p.picture, h: p.pictureHeight || 280, cap: p.title }));
+    if (p.items) {
+      var list = el('ul', 'sc-types');
+      p.items.forEach(function (t) { list.appendChild(el('li', null, t)); });
+      n.appendChild(list);
+    }
     if (p.defs) {
       var df = el('div', 'sc-defs');
       p.defs.forEach(function (d) {
@@ -369,6 +378,7 @@
         row.appendChild(el('div', 'sc-lead2-v', d[1]));
         lb.appendChild(row);
       });
+      n.appendChild(el('div', 'sc-scroll-hint', 'Прокрутите список документов ↓'));
       n.appendChild(lb);
     }
     if (p.grid) n.appendChild(gridEl(p.grid));
@@ -872,14 +882,9 @@
 
   /**
    * Цели-сорняки поверх сцены. Пока не нашли — прозрачные, по касанию
-   * появляется кольцо и подпись. Обзор с БПЛА подсвечивает все сразу.
+   * появляется кольцо и подпись. Обзор с БПЛА последовательно отмечает найденные растения.
    *
-   * total — сколько сорняков полагается найти по условию счётчика;
-   * по умолчанию равно числу меток, но экран 09 (см. weedsTotal
-   * в справочнике) специально просит на одну больше, чем реально
-   * нарисовано: амброзия полыннолистная на кадре — два куста, а найти
-   * просят три. Третьей не существует, и это не баг — так посетитель
-   * видит, что поле не полностью чистое, а не что счётчик сломан.
+   * total — число целей в текущей сцене.
    */
   function weedsEl(marks, root, total) {
     if (!st.found) st.found = {};
@@ -896,11 +901,27 @@
         st.found[i] = true;
         b.classList.add('is-found');
         if (st.countEl) countWeeds(marks.length, total);
+        showWeed('ambrosia');
       });
       st.weedEls.push(b);
       root.appendChild(b);
     });
     if (st.countEl) countWeeds(marks.length, total);
+  }
+
+  function showWeed(key) {
+    if (st.over) st.over.remove();
+    var w = find(C.weedCards, key);
+    var over = el('div', 'sc-over');
+    var panel = panelEl({ title: w.name, picture: w.img, pictureHeight: 410, text: w.text, cls: 'is-weed-detail' });
+    panel.classList.add('sc-over-panel');
+    panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true');
+    panel.setAttribute('aria-label', w.name);
+    var close = button({ label: 'Закрыть', action: 'closeOver' }, 'sc-btn');
+    panel.appendChild(close); over.appendChild(panel); $('view').appendChild(over);
+    st.over = over; close.focus();
+    over.addEventListener('click', function (e) { if (e.target === over) ACTIONS.closeOver(); });
+    over.addEventListener('keydown', function (e) { if (e.key === 'Escape') ACTIONS.closeOver(); });
   }
 
   function countWeeds(available, total) {
@@ -921,6 +942,7 @@
   /** Плавающие блоки по координатам кадра: панель, кнопки, сетка. */
   function boxesEl(scr, root) {
     scr.boxes.forEach(function (b) {
+      if (scr.id === 'seed-3' && tabKey() === 'iso' && !b.items.some(function (it) { return it.dyn === 'weedBtnDrone'; })) return;
       var n = el('div', 'sc-box' + (b.row ? ' is-row' : ''));
       n.style.left = b.at[0] + 'px';
       n.style.top = b.at[1] + 'px';
@@ -1129,18 +1151,30 @@
     var s = feedState();
     var sel = st.sel != null ? st.sel : s.sel;
     s.marks.forEach(function (m) {
-      var b = el('button', 'sc-marker sc-marker-prod sc-marker-feed' +
+      var b = el(tabKey() === 'feed' ? 'div' : 'button', 'sc-marker sc-marker-prod sc-marker-feed' +
         (sel === m.key ? ' is-on' : ''));
       b.type = 'button';
       b.style.left = m.x + 'px';
       b.style.top = m.y + 'px';
       b.appendChild(el('span', 'sc-marker-t', m.label));
-      b.addEventListener('click', function () { resetIdle(); st.sel = m.key; rerender(); });
+      if (tabKey() !== 'feed') b.addEventListener('click', function () { resetIdle(); st.sel = m.key; rerender(); });
+      else b.classList.add('is-static');
       root.appendChild(b);
     });
   }
 
-  var OVERLAYS = { store: storeOverlay, feed: feedOverlay };
+  function technicalOverlay(root) {
+    var drawings = {
+      biofuel: '<ellipse cx="180" cy="95" rx="95" ry="28"/><path d="M85 95v215c0 38 190 38 190 0V95M85 170c0 38 190 38 190 0M85 240c0 38 190 38 190 0"/><path d="M325 115c-90 90-90 160 0 160s90-70 0-160Z"/>',
+      polymer: '<path d="M85 125h240l-20 220H105Z"/><path d="M130 125V95c0-70 150-70 150 0v30"/><path d="M155 215q100-100 125-15q-15 80-100 65M155 285l105-75"/>',
+      textile: '<path d="M60 75h300v285H60Z"/><path d="M95 75v285M135 75v285M175 75v285M215 75v285M255 75v285M295 75v285M60 110h300M60 150h300M60 190h300M60 230h300M60 270h300M60 310h300"/>'
+    };
+    var figure = el('div', 'sc-tech-figure');
+    figure.innerHTML = '<svg viewBox="0 0 420 420" aria-hidden="true">' + drawings[tabKey()] + '</svg>';
+    figure.appendChild(el('div', 'sc-tech-caption', find(C.technical, tabKey()).name));
+    root.appendChild(figure);
+  }
+  var OVERLAYS = { store: storeOverlay, feed: feedOverlay, technical: technicalOverlay };
 
   /**
    * Три карточки маршрута во всю высоту экрана (кадр 15). У каждой
@@ -1192,17 +1226,9 @@
     },
 
     /* --- экран 6: доза удобрения --- */
-    doseValue: function () {
+    fertilizerAbout: function () {
       var f = find(C.fertilizers, selKey());
-      return panelEl({ title: 'Доза удобрения', text: f.name,
-        big: st.dose ? f.dose : 'формула' });
-    },
-    /* «Место для формулы» — заглушка: расчёта за ней нет, поэтому
-       плашка серая и не реагирует на касания (правка 21.09). Кнопка
-       «Рассчитать дозу удобрений» по-прежнему показывает саму дозу
-       в соседней плашке. */
-    doseNote: function () {
-      return panelEl({ text: C.doseNote, wip: true });
+      return panelEl({ title: f.name, text: f.text });
     },
 
     /* --- экран 7: панель слева с пояснением выбранного направления.
@@ -1248,7 +1274,7 @@
     },
     weedBtnDrone: function () {
       var on = tabKey() === 'drone';
-      return weedBtn(on ? 'Дрон запущен' : 'Запустить обзор с БПЛА',
+      return weedBtn(on ? (st.scanning ? 'Обследование поля…' : 'Обзор завершён') : 'Запустить обзор с БПЛА',
         'weedDrone', on);
     },
 
@@ -1256,7 +1282,14 @@
            «Зачем это нужно», только в состоянии drone --- */
     weedCardsGrid: function () {
       if (tabKey() !== 'drone') return null;
-      var box = gridEl({ src: 'weedCards', cols: 2, ico: true, gap: 4, noClick: true });
+      var box = el('div', 'sc-grid is-ico');
+      box.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+      C.weedCards.forEach(function (w) {
+        var b = el('button', 'sc-pick'); b.type = 'button';
+        b.appendChild(iconEl(w.icon)); b.appendChild(el('span', null, w.name));
+        b.addEventListener('click', function () { resetIdle(); showWeed(w.key); });
+        box.appendChild(b);
+      });
       /* в кадре сетка уже колонки (426 px против 514 у панели выше) и
          стоит вплотную к правому краю — своя ширина плюс выравнивание
          по правому краю флекс-колонки (сама колонка растягивает детей
@@ -1312,6 +1345,16 @@
       var f = foodTab();
       return panelEl({ title: f.title, text: f.text });
     },
+    foodTypes: function () {
+      var f = foodTab();
+      if (!f.types) return null;
+      var titles = { flour: 'Виды исследуемой муки', groats: 'Виды исследуемых круп', oil: 'Виды исследуемого масла' };
+      return panelEl({ title: titles[f.key], items: f.types, cls: 'is-types' });
+    },
+    technicalAbout: function () {
+      var t = find(C.technical, tabKey());
+      return panelEl({ cap: 'Прокрутите, чтобы прочитать полностью ↓', title: t.name, text: t.text, cls: 'is-technical' });
+    },
     foodCheck: function () {
       var f = foodTab();
       return panelEl({ title: 'Что оценивают', text: f.check });
@@ -1330,11 +1373,13 @@
       var s = feedState();
       return panelEl({ title: s.title, text: s.text });
     },
-    /* «Что проверяют» на корме и «Выбран продукт · молоко» на животном —
-       заглушки: данных за ними нет (правка 21.09). */
+    /* Проверки кормов, молока и мяса: тексты из замечаний 30.09. */
     feedCheck: function () {
       var s = feedState();
-      return panelEl({ title: s.check, text: s.checkText, wip: true });
+      var animal = tabKey() === 'animal';
+      var key = st.sel || 'milk';
+      return panelEl({ title: animal ? 'Что проверяют · ' + (key === 'meat' ? 'мясо' : 'молоко') : 'Что проверяют',
+        text: animal ? C.animalChecks[key] : C.feedCheck, cls: 'is-feed-check' });
     },
     feedStats: function () {
       var row = el('div', 'sc-stats');
@@ -1407,6 +1452,7 @@
   function colEl(spec, side, top) {
     var box = el('div', 'sc-col is-' + side + ' is-' + (spec.at || 'top') +
       (spec.hasNav ? ' has-nav' : ''));
+    if (side === 'right' && (cur.id === 'route-food' || cur.id === 'route-feed')) box.appendChild(el('div', 'sc-scroll-hint', 'Прокрутите, чтобы прочитать полностью ↓'));
     if (spec.width) box.style.width = spec.width + 'px';
     /* edge — свой отступ колонки от края экрана: в паре кадров Figma
        панель стоит не на общих 64 px */
@@ -1488,7 +1534,7 @@
     // другой элемент — своя привычная концентрация
     'soil-1': function () { st.level = find(C.soilElements, st.sel).start; },
     // другое удобрение — расчёт нужно запустить заново
-    'soil-2': function () { st.dose = null; }
+    'soil-2': function () { }
   };
 
   /**
@@ -1728,9 +1774,6 @@
     },
 
 
-    /** Экран 6: показать демонстрационный расчёт дозы удобрений. */
-    calcDose: function () { st.dose = true; rerender(); },
-
     /** Экран 9: переключение «поле издалека → поле вблизи, ищем сами».
         st.found общий на все состояния сцены, поэтому при входе в поиск
         его сбрасываем: иначе посетитель, который сначала запустил БПЛА
@@ -1739,18 +1782,34 @@
         кнопки жмут в любом порядке, так что случай рабочий. */
     weedSelf: function () {
       if (cur.tabsWip) return;
+      cancelDroneScan(); st.scanning = false;
       st.tab = tabKey() === 'iso' ? 'photo' : 'iso';
       if (st.tab === 'iso') st.found = {};
       rerender();
     },
 
-    /** Экран 9: обзор с БПЛА — свой кадр, все сорняки подсвечены. */
+    /** Экран 9: обзор с БПЛА, три последовательных обнаружения. */
     weedDrone: function () {
       if (cur.tabsWip) return;
-      if (tabKey() === 'drone') { st.tab = 'photo'; rerender(); return; }
-      st.tab = 'drone';
-      st.found = { 0: true, 1: true, 2: true };
+      if (tabKey() === 'drone') { cancelDroneScan(); st.scanning = false; st.tab = 'photo'; rerender(); return; }
+      cancelDroneScan();
+      st.tab = 'drone'; st.found = {}; st.scanning = true;
+      var scanState = st;
       rerender();
+      [0, 1, 2].forEach(function (i) {
+        scanTimers.push(setTimeout(function () {
+          if (st !== scanState || !cur || cur.id !== 'seed-3' || tabKey() !== 'drone') return;
+          st.found[i] = true;
+          if (st.weedEls[i]) st.weedEls[i].classList.add('is-found');
+          if (st.countEl) countWeeds(3, 3);
+          if (i === 2) {
+            st.scanning = false;
+            $('view').classList.remove('is-scanning');
+            var scanButton = $('view').querySelector('[data-action="weedDrone"]');
+            if (scanButton) scanButton.textContent = 'Обзор завершён';
+          }
+        }, 1700 + i * 1700));
+      });
     },
 
     /* --- экраны 16 и 17: следующая вкладка маршрута --- */
@@ -1802,7 +1861,6 @@
 
   /* Что доигрывает ?demo=1 на каждом экране — для снимков и показа. */
   var DEMOS = {
-    'soil-2': function () { ACTIONS.calcDose(); },
     'seed-3': function () { ACTIONS.weedDrone(); }
   };
 
@@ -1817,6 +1875,11 @@
     view.setAttribute('data-screen', cur.id);
     var layout = cur.layout || 'scene';
     view.setAttribute('data-layout', layout);
+    if (cur.id === 'seed-3') {
+      view.classList.toggle('is-self-search', tabKey() === 'iso');
+      view.classList.toggle('is-drone-search', tabKey() === 'drone');
+      view.classList.toggle('is-scanning', !!st.scanning);
+    }
     if (layout === 'intro') renderIntro(cur, view);
     else renderSceneLayout(cur, view);
   }
@@ -1846,6 +1909,7 @@
     var view = $('view');
     view.classList.add('is-out');
     setTimeout(function () {
+      cancelDroneScan();
       cur = scr;
       st = {};
       draw();
@@ -1899,6 +1963,7 @@
     var scr = byId[id];
     if (!scr || (cur && cur.id === id)) return;
     hist = [];
+    cancelDroneScan();
     cur = scr;
     st = {};
     draw();
@@ -2001,7 +2066,10 @@
         if (p && p.screen) openScreen(p.screen);
         else setUrl(cur ? cur.id : HOME);
       },
-      hide: function () { ACTIONS.closeOver(); },
+      hide: function () {
+        ACTIONS.closeOver(); cancelDroneScan();
+        if (st.scanning) { st.scanning = false; st.tab = 'photo'; rerender(); }
+      },
       reset: reset
     });
   } else if (document.readyState === 'loading') {

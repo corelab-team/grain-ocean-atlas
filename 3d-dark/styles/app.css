@@ -2398,7 +2398,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   --sb-thumb: #43744B;
 
   /* Фон раздела — снимок космоса от заказчика: тёмно-синяя туманность
-     с мелкими звёздами (assets/textures/bg_space.webp, 1920x1080, сжат
+     с мелкими звёздами (assets/textures/bg_space-dense.webp, 1920x1080, сжат
      из assets/concept/src/globe-space-bg.webp). Лежит нижним слоем,
      выше — виньетка, она гасит углы под панелями. Один и тот же фон
      на всех трёх кадрах раздела. */
@@ -2406,7 +2406,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   background-image:
     radial-gradient(120% 90% at 50% 45%,
       rgba(0, 0, 0, 0) 45%, rgba(2, 4, 9, .35) 80%, rgba(2, 4, 9, .70) 100%),
-    url(../assets/textures/bg_space.webp);
+    url(../assets/textures/bg_space-dense.webp);
   background-repeat: no-repeat, no-repeat;
   background-size: auto, cover;
   background-position: center, center;
@@ -2435,7 +2435,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   background-image:
     radial-gradient(120% 90% at 50% 45%,
       rgba(0, 0, 0, 0) 45%, rgba(2, 4, 9, .35) 80%, rgba(2, 4, 9, .70) 100%),
-    url(../assets/textures/bg_space.webp);
+    url(../assets/textures/bg_space-dense.webp);
   background-repeat: no-repeat, no-repeat;
   background-size: auto, cover;
   background-position: center, center;

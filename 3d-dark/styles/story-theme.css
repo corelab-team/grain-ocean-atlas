@@ -2014,3 +2014,43 @@ body.story-screen { background: var(--sc-bg, #141D23); }
   font-size: 36px;
   line-height: 43.2px;
 }
+
+/* Правки из презентации 30.09: чтение списков и освобождение поля. */
+#sec-story [data-screen="export-2"] .sc-leads2 { max-height: 540px; overflow-y: auto; padding-right: 12px; overscroll-behavior: contain; }
+#sec-story [data-screen="export-2"] .sc-lead2 { margin-top: 22px; }
+#sec-story [data-screen="export-2"] .sc-lead2-k { font-size: 25px; line-height: 34px; }
+#sec-story [data-screen="route-food"] .sc-col.is-right { max-height: 690px; overflow-y: auto; overscroll-behavior: contain; }
+#sec-story .sc-types { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 28px; padding-left: 22px; margin: 22px 0 0; font-size: 22px; line-height: 30px; color: var(--sc-muted); }
+#sec-story [data-screen="route-feed"] .sc-col.is-right { max-height: 610px; overflow-y: auto; overscroll-behavior: contain; }
+#sec-story .sc-marker-feed.is-static { cursor: default; }
+#sec-story .sc-panel.is-technical { height: 610px; overflow-y: auto; overscroll-behavior: contain; }
+#sec-story .sc-panel.is-technical .sc-panel-p { font-size: 25px; line-height: 35px; }
+#sec-story .sc-tech-figure { position: absolute; left: 100px; top: 330px; width: 660px; text-align: center; color: var(--sc-gold); }
+#sec-story .sc-tech-figure svg { width: 500px; height: 500px; fill: rgba(221,193,149,.12); stroke: currentColor; stroke-width: 4; stroke-linejoin: round; }
+#sec-story .sc-tech-caption { font-size: 32px; line-height: 42px; }
+#sec-story .is-self-search .sc-col, #sec-story .is-self-search .sc-nav-back, #sec-story .is-self-search .sc-nav-next, #sec-story .is-self-search .sc-head { display: none; }
+#sec-story .is-self-search .sc-count { top: 915px !important; background: rgba(10,25,20,.7); padding: 8px 16px; border-radius: 12px; }
+#sec-story .is-drone-search .sc-weed:not(.is-found) { opacity: 0; pointer-events: none; }
+#sec-story .is-drone-search .sc-scene { --flight-duration: 5.1s; }
+#sec-story .is-scanning .sc-scene .is-obj { animation: sc-drone-flight var(--flight-duration) ease-in-out both; }
+#sec-story .is-scanning .sc-scene::before { content: ''; position: absolute; z-index: 4; left: 580px; top: 300px; width: 700px; height: 390px; pointer-events: none; background: linear-gradient(180deg, transparent 40%, rgba(149,236,214,.35) 50%, transparent 60%); animation: sc-field-scan 1.7s linear 3; }
+@keyframes sc-drone-flight { 0% { transform: translate(0,0) rotate(-4deg); } 33% { transform: translate(370px,-60px) rotate(4deg); } 66% { transform: translate(600px,150px) rotate(-4deg); } 100% { transform: translate(80px,180px); } }
+@keyframes sc-field-scan { from { transform: translateY(-120px); } to { transform: translateY(120px); } }
+#sec-story .sc-over-panel.is-weed-detail { width: 800px; max-height: 950px; overflow-y: auto; }
+#sec-story .is-weed-detail .sc-shot { margin-top: 24px; border-radius: 20px; }
+#sec-story .is-weed-detail .sc-shot img { object-fit: contain; }
+#sec-story [data-screen="quality-2"] .sc-def-v { font-size: 22px; line-height: 30px; }
+
+#sec-story [data-screen="quality-2"] .sc-def-v { white-space: pre-line; }
+#sec-story [data-screen="quality-2"] .sc-scene video { clip-path: inset(0 330px 0 330px round 32px); }
+/* Видимые полосы прокрутки обозначают продолжение текста на стенде. */
+#sec-story .sc-col.is-right, #sec-story .sc-leads2, #sec-story .sc-panel.is-technical { scrollbar-width: auto; scrollbar-color: #ddc195 rgba(255,255,255,.08); }
+#sec-story .sc-col.is-right::-webkit-scrollbar, #sec-story .sc-leads2::-webkit-scrollbar, #sec-story .sc-panel.is-technical::-webkit-scrollbar { width: 12px; display: block; }
+#sec-story .sc-col.is-right::-webkit-scrollbar-track, #sec-story .sc-leads2::-webkit-scrollbar-track, #sec-story .sc-panel.is-technical::-webkit-scrollbar-track { background: rgba(255,255,255,.08); border-radius: 8px; }
+#sec-story .sc-col.is-right::-webkit-scrollbar-thumb, #sec-story .sc-leads2::-webkit-scrollbar-thumb, #sec-story .sc-panel.is-technical::-webkit-scrollbar-thumb { background: #ddc195; border-radius: 8px; }
+#sec-story [data-screen="route-feed"] .sc-panel { padding: 24px; }
+#sec-story [data-screen="route-feed"] .sc-panel-p { font-size: 23px; line-height: 31px; }
+
+#sec-story .sc-scroll-hint { font-size: 19px; line-height: 26px; color: var(--sc-gold); padding: 8px 16px; flex-shrink: 0; }
+#sec-story [data-screen="route-food"] .sc-col.is-right > *, #sec-story [data-screen="route-feed"] .sc-col.is-right > * { flex-shrink: 0; }
+#sec-story [data-screen="route-food"] .sc-col.is-right, #sec-story [data-screen="route-feed"] .sc-col.is-right { padding-right: 14px; }

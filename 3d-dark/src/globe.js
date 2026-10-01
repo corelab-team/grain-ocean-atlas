@@ -1115,7 +1115,7 @@
     // globe-space-bg.webp) — путь пишем буквально, а не собираем из имени
     // темы: tools/build_dist.py ищет ссылки на assets/ прямо в тексте кода.
     if (bgSphere) {
-      loader.load(U.asset('assets/textures/bg_space.webp'), function (t) {
+      loader.load(U.asset('assets/textures/bg_space-dense.webp'), function (t) {
         // цветовое пространство не задаём: шейдер отдаёт значения снимка
         // как есть, без перекодирования — так и должно выглядеть на экране
         t.generateMipmaps = false;
