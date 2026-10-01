@@ -92,7 +92,6 @@
   var C_DATA = [20, 68, 52];           // #144434 — тёмно-зелёный
   var C_STRONG = [230, 180, 22];       // #e6b416 — цвет колоска и метки в легенде
   var C_NONE = [42, 53, 51];           // #2a3533
-  var FILL_ALPHA = 0.92;               // регионы присутствия: сквозь заливку чуть видно фактуру фона
 
   /* Регион считается охваченным госмониторингом, если за выбранный год
      в таблицах заказчика есть цифры хотя бы по одному виду пшеницы.
@@ -115,18 +114,28 @@
      контура, заливка у них обычная. */
 
   var BORDER = 'rgba(229,199,115,.55)';
-  var BORDER_MON = 'rgb(206,170,26)';  // госмониторинг: насыщенное золото, линия 1,3 px
+  var BORDER_MON = 'rgb(206,170,26)';  // госмониторинг: #CDAA1C, линия 0,9 px — по векторам кадра 553:1480 (правка 30.09)
   var BORDER_HOT = '#F6E8C8';
 
-  /* Экран «Регионы присутствия»: подсвеченные регионы, остальные тише. */
-  var PRES_ON = [31, 111, 82];
-  var PRES_OFF = [19, 66, 51];
-  var PRES_PICK = [230, 180, 47];
-  var LAB_DOT = '#F6E3BB';
-  var HQ_RING = '#E6B416';             // отметка головного офиса: золотое кольцо
-  var HQ_HIT = 26;                     // радиус касания отметки, px кадра
-  var DOT_GLOW_R = 22;                 // радиус свечения точки, px кадра (до dpr)
-  var DOT_GLOW_A = .55;                // альфа свечения в центре
+  /* Экран «Регионы присутствия» — цвета и толщины сняты с векторного
+     слоя кадра 553:1029 (правка 30.09, «точно по фигме»):
+       остальные регионы — #073D34 с прозрачностью 0,52 (сквозь них
+         виден рельеф фона), граница #E6B416 с прозрачностью 0,65, 1,2 px;
+       регионы присутствия — #1A6045, обводка #CDB06A, 1,9 px;
+       выбранный — золотой градиент #F7D980 → #DAB454 → #A68434
+         с прозрачностью 0,9 и золотым свечением вокруг. */
+  var PRES_ON = [26, 96, 69];
+  var PRES_OFF = [7, 61, 52];
+  var PRES_OFF_A = 0.52;
+  var PRES_PICK = [218, 180, 84];      // середина градиента — для наведения
+  var PRES_PICK_STOPS = ['#F7D980', '#DAB454', '#A68434'];
+  var PRES_BORDER = 'rgba(230,180,22,.65)';
+  var PRES_BORDER_ON = '#CDB06A';
+  /* Точка филиала — как в макете: светлое ядро 11,7 px и три кольца
+     свечения 22,7 / 35,6 / 51,8 px. Одна и та же у всех 18 филиалов
+     (замечание заказчика 30.09: «в макетах все точки одинаковые»). */
+  var DOT_RINGS = [[25.9, 'rgba(248,209,102,.05)'], [17.8, 'rgba(248,209,102,.11)'],
+                   [11.3, 'rgba(255,227,145,.23)'], [5.83, '#FFF2B5']];
 
   /* Основные (средневзвешенные) показатели зерна: поле в данных, подпись,
      единица, номер метки вокруг зерна (n) и пояснение. Значения берутся
@@ -270,7 +279,7 @@
     if (screen === 'presence') {
       var here = presOf[id];
       c = here ? (here === presId ? PRES_PICK : PRES_ON) : PRES_OFF;
-      return rgb(hot && here ? lighten(c, 0.22) : c);
+      return rgb(hot && here ? lighten(c, 0.16) : c);
     }
     c = hasMon(id) ? C_DATA : C_NONE;
     return rgb(hot ? lighten(c, 0.26) : c);
@@ -433,6 +442,13 @@
     var onPres = screen === 'presence';
     ctx.lineJoin = 'round';
 
+    if (onPres) {
+      drawPresMap(k);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      drawLabs();
+      return;
+    }
+
     for (var i = 0; i < shapes.length; i++) {
       var s = shapes[i];
       var dim = !onPres && hits && !hits[s.id];
@@ -442,10 +458,10 @@
         (!onPres && s.id === regionId) ||
         (onPres && presOf[s.id] === presId);
       // заливка чуть прозрачная: сквозь неё видна фактура фона, как в макете
-      ctx.globalAlpha = dim ? 0.26 : (onPres ? FILL_ALPHA : 1);
+      ctx.globalAlpha = dim ? 0.26 : 1;
       ctx.fillStyle = fillFor(s.id, hot);
       ctx.fill(s.path, 'evenodd');
-      ctx.lineWidth = (hot ? 2.0 : (onPres ? 0.9 : 1.3)) / k;
+      ctx.lineWidth = (hot ? 2.0 : 0.9) / k;
       ctx.strokeStyle = hot ? BORDER_HOT : (onPres ? BORDER : BORDER_MON);
       ctx.stroke(s.path);
     }
@@ -463,7 +479,65 @@
     }
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (onPres) drawLabs(); else drawStrongRye();
+    drawStrongRye();
+  }
+
+  /**
+   * Регионы присутствия по кадру 553:1029. Три прохода, чтобы обводки
+   * не перекрывали друг друга как попало: сначала остальные регионы
+   * (полупрозрачные, с тонкой золотой границей), поверх — регионы
+   * с филиалами со своей обводкой, последним — выбранный регион
+   * в золотом градиенте со свечением.
+   */
+  function drawPresMap(k) {
+    // выбранных контуров может быть несколько: у филиала бывают соседние
+    // субъекты (поле also) — Ленинградская область вместе с Петербургом,
+    // Московская — с Москвой. Раньше золотился только последний из них,
+    // а остальные пропускались вовсе (замечание 30.09 про Ленобласть).
+    var i, s, picks = [];
+    for (i = 0; i < shapes.length; i++) {
+      s = shapes[i];
+      if (presOf[s.id]) continue;
+      ctx.globalAlpha = PRES_OFF_A;
+      ctx.fillStyle = rgb(PRES_OFF);
+      ctx.fill(s.path, 'evenodd');
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = 1.215 / k;
+      ctx.strokeStyle = PRES_BORDER;
+      ctx.stroke(s.path);
+    }
+    for (i = 0; i < shapes.length; i++) {
+      s = shapes[i];
+      if (!presOf[s.id]) continue;
+      if (presOf[s.id] === presId) { picks.push(s); continue; }
+      ctx.fillStyle = fillFor(s.id, s.id === hoverId);
+      ctx.fill(s.path, 'evenodd');
+      ctx.lineWidth = 1.86 / k;
+      ctx.strokeStyle = PRES_BORDER_ON;
+      ctx.stroke(s.path);
+    }
+    if (!picks.length) return;
+    // градиент по диагонали общей рамки выбранных контуров, как в макете
+    // (сверху слева светлее) — один на всех, без шва между областью и городом
+    var b = picks[0].bbox.slice();   // [minX, minY, maxX, maxY] в координатах контуров
+    picks.forEach(function (p) {
+      b[0] = Math.min(b[0], p.bbox[0]); b[1] = Math.min(b[1], p.bbox[1]);
+      b[2] = Math.max(b[2], p.bbox[2]); b[3] = Math.max(b[3], p.bbox[3]);
+    });
+    var g = ctx.createLinearGradient(b[0], b[1], b[2], b[3]);
+    g.addColorStop(0, PRES_PICK_STOPS[0]);
+    g.addColorStop(0.5, PRES_PICK_STOPS[1]);
+    g.addColorStop(1, PRES_PICK_STOPS[2]);
+    ctx.save();
+    ctx.shadowColor = 'rgba(247,207,98,.85)';
+    ctx.shadowBlur = 28 * dpr;
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = g;
+    picks.forEach(function (p) { ctx.fill(p.path, 'evenodd'); });
+    ctx.restore();
+    ctx.lineWidth = 1.86 / k;
+    ctx.strokeStyle = PRES_BORDER;
+    picks.forEach(function (p) { ctx.stroke(p.path); });
   }
 
   /* Золотой колосок в центре регионов с сильной пшеницей — слой «rye»
@@ -503,55 +577,25 @@
     ctx.globalAlpha = 1;
   }
 
-  /** Мягкое свечение вокруг точки — штатное свойство самой точки,
-      одинаковое у всех отметок присутствия (филиалы и головной офис),
-      независимо от того, выбран регион или нет. x, y — px кадра. */
-  function drawDotGlow(x, y) {
-    var r = DOT_GLOW_R * dpr;
-    var g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(246,227,187,' + DOT_GLOW_A + ')');
-    g.addColorStop(1, 'rgba(246,227,187,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill();
+  /** Точка филиала — ядро и три кольца свечения, как в макете (DOT_RINGS).
+      Одинаковая у всех филиалов и не зависит от выбора региона.
+      Отдельной отметки головного офиса на карте больше нет: в кадре
+      553:1029 все 18 точек одинаковые (правка заказчика 30.09). */
+  function drawDot(x, y) {
+    for (var i = 0; i < DOT_RINGS.length; i++) {
+      ctx.fillStyle = DOT_RINGS[i][1];
+      ctx.beginPath(); ctx.arc(x, y, DOT_RINGS[i][0] * dpr, 0, 6.283); ctx.fill();
+    }
   }
 
-  /** Отметка головного офиса: золотое кольцо со светлой точкой.
-      Свечение вокруг — то же самое, что у обычных точек филиалов
-      (drawDotGlow), и не меняется при выборе/снятии выделения — как
-      и у остальных точек, у которых своего состояния «выбрано» нет. */
-  function drawHq() {
-    if (!hq) return;
-    var p = toCanvas(hq.x, hq.y);
-    var x = p[0] * dpr, y = p[1] * dpr;
-    drawDotGlow(x, y);
-    ctx.fillStyle = 'rgba(14,43,46,.85)';
-    ctx.beginPath(); ctx.arc(x, y, 9.5 * dpr, 0, 6.283); ctx.fill();
-    ctx.lineWidth = 2.5 * dpr;
-    ctx.strokeStyle = HQ_RING;
-    ctx.stroke();
-    ctx.fillStyle = LAB_DOT;
-    ctx.beginPath(); ctx.arc(x, y, 4.2 * dpr, 0, 6.283); ctx.fill();
-  }
-
-  /** Касание попало в отметку головного офиса? Координаты — px кадра. */
-  function hitHq(px, py) {
-    if (!hq || screen !== 'presence') return false;
-    var p = toCanvas(hq.x, hq.y);
-    var dx = px - p[0], dy = py - p[1];
-    return dx * dx + dy * dy <= HQ_HIT * HQ_HIT;
-  }
-
-  /** Светящиеся точки лабораторий поверх карты. */
+  /** Точки лабораторий поверх карты. */
   function drawLabs() {
     for (var i = 0; i < labs.length; i++) {
       var p = toCanvas(labs[i].x, labs[i].y);
       var x = p[0] * dpr, y = p[1] * dpr;
       if (x < -40 || y < -40 || x > MAP_W * dpr + 40 || y > MAP_H * dpr + 40) continue;
-      drawDotGlow(x, y);
-      ctx.fillStyle = LAB_DOT;
-      ctx.beginPath(); ctx.arc(x, y, 4.2 * dpr, 0, 6.283); ctx.fill();
+      drawDot(x, y);
     }
-    drawHq();
   }
 
   var rafId = 0;                       // 0 — цикл не крутится
@@ -1288,16 +1332,24 @@
     var at = presId === 'hq' ? hq : (s && { x: s.c[0], y: s.c[1] });
     if (!p || !at) { call.classList.remove('is-on'); return; }
     var c = toCanvas(at.x, at.y);
-    // в макете подпись слева от региона в две строки, линия под ней
-    // тянется к контуру; у левого края кадра подпись встаёт справа
+    // Кадр 553:1029: подпись слева от точки филиала (её левый край на
+    // 257 px левее точки, верх на 78 выше), линия идёт под подписью
+    // на 51 px ниже её верха, за 37 px до точки ломается и доходит до
+    // неё наискось. У левого края кадра всё зеркально — подпись справа.
     var right = c[0] < 300;
     var left = U.clamp(right ? c[0] + 70 : c[0] - 257, 24, MAP_W - 300);
+    var top = U.clamp(c[1] - 78, 80, MAP_H - 140);
     call.classList.toggle('is-right', right);
     call.style.left = left + 'px';
-    call.style.top = U.clamp(c[1] - 80, 80, MAP_H - 140) + 'px';
-    // линия от подписи к контуру региона
-    var line = call.querySelector('i');
-    if (line) line.style.width = Math.max(40, right ? left - c[0] : c[0] - left) + 'px';
+    call.style.top = top + 'px';
+    var dx = c[0] - left, dy = c[1] - top;          // точка в системе подписи
+    var knee = right ? dx + 37 : dx - 37;
+    var end = right ? 150 : 0;             // под подписью, до её дальнего края
+    var path = call.querySelector('.mn-call-line path');
+    if (path) {
+      path.setAttribute('d', 'M' + dx.toFixed(1) + ' ' + dy.toFixed(1) +
+        'L' + knee.toFixed(1) + ' 51H' + end);
+    }
     $('call-name').textContent = p.name;
     call.classList.add('is-on');
   }
@@ -1507,7 +1559,6 @@
       gest = null;
       // выбор региона — только чистое касание одним пальцем без движения
       if (e.type !== 'pointerup' || !p || !was || was.pinch || was.moved > TAP_SLOP) return;
-      if (hitHq(p[0], p[1])) { selectPresence('hq'); return; }
       var id = pick(p[0], p[1]);
       if (id && screen === 'presence') selectPresence(id);
       // карточка открывается только там, где есть цифры; иначе
@@ -1711,12 +1762,6 @@
     var n = pres && pres.regions ? Object.keys(pres.regions).length : 0;
     $('pres-count').textContent = n + ' ' + U.plural(n, 'филиал', 'филиала', 'филиалов') +
       ' ЦОК АПК по всей России';
-    // приписка «Головной офис» под картой убрана по правке заказчика
-    // от 30.09 — сам маркер убираем целиком, вместе с точкой-значком,
-    // чтобы не оставался осиротевший кружок и лишний отступ (flex gap
-    // считается только между видимыми элементами).
-    var hqKey = $('pres-hq-key');
-    if (hqKey && hqKey.parentNode) hqKey.parentNode.removeChild(hqKey);
   }
 
   /** Enter или кнопка «Искать»: открыть первое совпадение. */
@@ -1742,13 +1787,6 @@
       var s = shapes.filter(function (x) { return x.id === id; })[0];
       if (!s) return null;
       var p = toCanvas(s.c[0], s.c[1]);
-      var r = $('map').getBoundingClientRect();
-      return [r.left + p[0] * (r.width / MAP_W), r.top + p[1] * (r.height / MAP_H)];
-    },
-    /** Отметка головного офиса в координатах страницы (регионы присутствия). */
-    hqPoint: function () {
-      if (!hq) return null;
-      var p = toCanvas(hq.x, hq.y);
       var r = $('map').getBoundingClientRect();
       return [r.left + p[0] * (r.width / MAP_W), r.top + p[1] * (r.height / MAP_H)];
     },

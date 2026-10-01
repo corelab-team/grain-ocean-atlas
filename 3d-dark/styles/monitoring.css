@@ -67,6 +67,14 @@
   background-position: center;
 }
 #sec-monitoring #stars { display: none; }
+/* Регионы присутствия — свой фон по кадру 553:1029 (правка 30.09):
+   размытое светлое пятно и рельеф с прозрачностью, собраны из слоёв
+   кадра в одну картинку по размеру карточки. Сквозь полупрозрачные
+   регионы без филиалов он и просвечивает. */
+#sec-monitoring.on-presence #card {
+  background-image: url(../assets/photos/concept/presence-bg.webp);
+  background-size: 100% 100%;
+}
 body.mon-screen { background: #141d23; }
 
 #sec-monitoring #loading {
@@ -669,6 +677,11 @@ body.mon-screen { background: #141d23; }
 
 /* выноска у выбранного региона присутствия: подпись и линия к контуру.
    В макете 553:1029 подпись узкая, «Московская / область» в две строки */
+/* Выноска выбранного региона — по кадру 553:1029: подпись в две строки
+   (ширина блока 150 — «Московская / область» переносится, как в кадре),
+   под ней линия #FFE6AD (0,9) толщиной 1,8, которая у самой точки
+   филиала ломается и доходит до неё наискось. Линию рисует svg, путь
+   считает placeCall() в monitoring.js. */
 #sec-monitoring .mn-call {
   position: absolute;
   z-index: 4;
@@ -683,15 +696,18 @@ body.mon-screen { background: #141d23; }
   transition: opacity .28s ease;
 }
 #sec-monitoring .mn-call.is-on { opacity: 1; }
-#sec-monitoring .mn-call i {
+#sec-monitoring .mn-call-line {
   position: absolute;
   left: 0;
-  bottom: -14px;
-  width: 280px;
-  height: 1px;
-  background: rgba(255, 255, 255, .55);
+  top: 0;
+  overflow: visible;
 }
-#sec-monitoring .mn-call.is-right i { left: -60px; width: 60px; }
+#sec-monitoring .mn-call-line path {
+  fill: none;
+  stroke: #FFE6AD;
+  stroke-opacity: .9;
+  stroke-width: 1.8;
+}
 
 /* кнопки масштаба справа снизу */
 #sec-monitoring #map-tools {
@@ -1294,11 +1310,8 @@ body.mon-screen { background: #141d23; }
 }
 
 /* слева внизу: «• 18 филиалов ЦОК АПК по всей России» над подсказкой;
-   точка — как точки лабораторий на карте. Приписку про головной офис
-   (значок is-hq и подпись рядом) убрали по правке заказчика от 30.09 —
-   элемент #pres-hq-key удаляется из DOM в drawPresCount() (monitoring.js),
-   правило .is-hq больше не используется и снято, чтобы не оставалось
-   мёртвого CSS. */
+   точка — как точки лабораторий на карте. Приписку «Головной офис»
+   убрали по правке заказчика от 30.09 — вместе с отметкой на карте. */
 #sec-monitoring .pres-count {
   position: absolute;
   z-index: 5;
@@ -1315,11 +1328,11 @@ body.mon-screen { background: #141d23; }
 #sec-monitoring .pres-count span { display: flex; align-items: center; gap: 9px; }
 #sec-monitoring .pres-count b { font-weight: inherit; }
 #sec-monitoring .pres-count i { flex: none; box-sizing: border-box; border-radius: 50%; }
+/* в легенде кадра 553:1029 — ровный кружок 11,7 px #FFF2B5, без ореола */
 #sec-monitoring .pres-count .is-lab {
-  width: 11px;
-  height: 11px;
-  background: #f6e3bb;
-  box-shadow: 0 0 10px rgba(246, 227, 187, .6);
+  width: 11.66px;
+  height: 11.66px;
+  background: #FFF2B5;
 }
 
 #sec-monitoring .pres-hint {

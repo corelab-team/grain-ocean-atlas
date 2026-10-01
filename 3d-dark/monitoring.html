@@ -33,7 +33,7 @@
     <div id="map-box">
       <canvas id="map"></canvas>
       <div id="map-tip" class="mn-tip"></div>
-      <div id="map-call" class="mn-call"><span id="call-name"></span><i></i></div>
+      <div id="map-call" class="mn-call"><span id="call-name"></span><svg class="mn-call-line" width="1" height="1"><path d=""/></svg></div>
     </div>
 
     <!-- кнопки масштаба общие для карты обоих экранов -->
@@ -189,11 +189,9 @@
       <section id="card-pres" class="mn-panel mn-pres"></section>
       <div id="pres-sb" class="mn-sb mn-pres-sb is-off"><i></i></div>
 
-      <!-- слева внизу: число филиалов (считается по data/presence.json)
-           и значок головного офиса -->
+      <!-- слева внизу: число филиалов (считается по data/presence.json) -->
       <div class="pres-count">
         <span><i class="is-lab"></i><b id="pres-count">18 филиалов ЦОК АПК по всей России</b></span>
-        <span id="pres-hq-key"><i class="is-hq"></i>Головной офис</span>
       </div>
 
       <div class="pres-hint">Выберите регион, чтобы узнать больше.

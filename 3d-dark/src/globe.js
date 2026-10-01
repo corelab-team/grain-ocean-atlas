@@ -64,7 +64,7 @@
   var renderer, scene, camera, canvas;
   var pivotTilt, pivotSpin, world;      // tilt(rot.x) > spin(rot.y) > world
   var earth, borders, highlight, atmo, halo, edge, bgSphere;
-  var arcGroup, ships = [], originDot;
+  var arcGroup, ships = [], originDot, destDot;
   var endPointsBig = null, endPointsSmall = null, particles = null;
 
   var topoFeatures = null;              // контуры стран для подсветки
@@ -617,45 +617,95 @@
   }
 
   /**
-   * Силуэт судна сбоку — вместо круглой точки для корабликов на маршруте.
-   * Вид сбоку узнаётся при любом развороте дуги на экране (в отличие от
-   * вида сверху, который выглядит кораблём только вдоль одной оси), а на
-   * спрайте 20 px (PX.ship) это всё ещё «лодочка с рубкой», а не пятно.
-   * Приём тот же, что в dotTexture: мягкий цветной ореол снизу — иначе
-   * маленький силуэт теряется на тёмном фоне, — и яркое ядро сверху.
+   * Сухогруз сбоку — как на кадре 613:2268 (правка 30.09): светлый корпус
+   * с золотой обводкой, надстройка с мостиком у кормы, грузовые люки
+   * и краны на палубе, мягкое золотое свечение вокруг. Холст 2:1,
+   * нос справа; flip рисует то же судно носом влево. Киль стоит на
+   * SHIP_KEEL высоты холста — этой точкой судно садится на линию
+   * маршрута (см. sprite.center в init).
    */
-  function shipTexture(rgb) {
-    return pointTexture(rgb, function (ctx, s, c) {
-      var halo = ctx.createRadialGradient(c, c, 0, c, c, c);
-      halo.addColorStop(0, 'rgba(' + rgb + ',.5)');
-      halo.addColorStop(0.5, 'rgba(' + rgb + ',.18)');
-      halo.addColorStop(1, 'rgba(' + rgb + ',0)');
-      ctx.fillStyle = halo;
-      ctx.fillRect(0, 0, s, s);
+  var SHIP_W = 128, SHIP_H = 64, SHIP_KEEL = 0.80;
+  function shipTexture(flip) {
+    var W = SHIP_W, H = SHIP_H;
+    var cv = document.createElement('canvas');
+    cv.width = W * 2; cv.height = H * 2;       // вдвое плотнее: на 4K-панели не мылится
+    var ctx = cv.getContext('2d');
+    ctx.scale(2, 2);
+    if (flip) { ctx.translate(W, 0); ctx.scale(-1, 1); }
+    var X = function (f) { return f * W; }, Y = function (f) { return f * H; };
 
-      var grad = ctx.createLinearGradient(0, c - s * 0.16, 0, c + s * 0.15);
-      grad.addColorStop(0, 'rgba(255,255,255,1)');
-      grad.addColorStop(1, 'rgba(' + rgb + ',.95)');
-      ctx.fillStyle = grad;
-
-      // корпус: ватерлиния ровная, корма (слева) выше борта, нос (справа)
-      // скошен вниз, днище — пологая дуга. Форма и есть силуэт «лодочки».
+    function body() {
       ctx.beginPath();
-      ctx.moveTo(c - s * 0.30, c);
-      ctx.lineTo(c + s * 0.22, c);
-      ctx.lineTo(c + s * 0.32, c + s * 0.07);
-      ctx.quadraticCurveTo(c, c + s * 0.15, c - s * 0.34, c + s * 0.07);
+      // корпус: корма слева почти отвесная, нос справа скошен вперёд
+      ctx.moveTo(X(0.07), Y(0.60));
+      ctx.lineTo(X(0.95), Y(0.56));
+      ctx.lineTo(X(0.86), Y(SHIP_KEEL));
+      ctx.lineTo(X(0.11), Y(SHIP_KEEL));
       ctx.closePath();
-      ctx.fill();
+      // надстройка у кормы: корпус мостика, рубка, мачта
+      ctx.rect(X(0.12), Y(0.30), X(0.19), Y(0.30));
+      ctx.rect(X(0.10), Y(0.24), X(0.23), Y(0.07));
+      ctx.rect(X(0.20), Y(0.08), X(0.025), Y(0.16));
+      // грузовые люки на палубе
+      ctx.rect(X(0.36), Y(0.49), X(0.13), Y(0.10));
+      ctx.rect(X(0.51), Y(0.49), X(0.13), Y(0.10));
+      ctx.rect(X(0.66), Y(0.49), X(0.13), Y(0.10));
+    }
+    function cranes() {
+      ctx.beginPath();
+      [0.50, 0.65].forEach(function (x) {
+        ctx.moveTo(X(x), Y(0.49)); ctx.lineTo(X(x), Y(0.24));
+        ctx.lineTo(X(x + 0.10), Y(0.40));
+      });
+    }
 
-      // рубка и труба — короткие блоки над кормой, по ним силуэт и
-      // читается как корабль, а не как обрезок эллипса
-      ctx.fillRect(c - s * 0.16, c - s * 0.16, s * 0.20, s * 0.16);
-      ctx.fillRect(c - s * 0.02, c - s * 0.24, s * 0.06, s * 0.10);
+    // свечение: та же фигура, размытая золотом
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,196,96,.95)';
+    ctx.shadowBlur = 9;
+    ctx.fillStyle = 'rgba(255,214,140,.9)';
+    body(); ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = '#FFF7EA';
+    body(); ctx.fill();
+    ctx.strokeStyle = '#E4AE55';
+    ctx.lineWidth = 1.4;
+    ctx.lineJoin = 'round';
+    body(); ctx.stroke();
+    cranes();
+    ctx.lineWidth = 1.6;
+    ctx.strokeStyle = '#FFF7EA';
+    ctx.stroke();
+
+    // окна мостика и полоса ватерлинии
+    ctx.fillStyle = '#C98E35';
+    for (var i = 0; i < 4; i++) ctx.fillRect(X(0.14 + i * 0.04), Y(0.35), X(0.025), Y(0.05));
+    ctx.fillRect(X(0.11), Y(0.70), X(0.77), Y(0.03));
+
+    var t = new THREE.CanvasTexture(cv);
+    if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace;
+    t.generateMipmaps = false;
+    t.minFilter = THREE.LinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    return t;
+  }
+
+  /** Конец выбранного маршрута: белый диск с золотым ореолом (кадр 613:2268). */
+  function endTexture() {
+    return pointTexture('', function (ctx, s, c) {
+      var gr = ctx.createRadialGradient(c, c, 0, c, c, c);
+      gr.addColorStop(0, 'rgba(255,248,232,1)');
+      gr.addColorStop(0.34, 'rgba(255,240,205,1)');
+      gr.addColorStop(0.42, 'rgba(255,200,110,.75)');
+      gr.addColorStop(0.7, 'rgba(255,190,90,.22)');
+      gr.addColorStop(1, 'rgba(255,190,90,0)');
+      ctx.fillStyle = gr;
+      ctx.fillRect(0, 0, s, s);
     });
   }
 
-  var TEX_GOLD = null, TEX_WHITE = null, TEX_SHIP = null;
+  var TEX_GOLD = null, TEX_WHITE = null, TEX_SHIP = null, TEX_SHIP_L = null, TEX_END = null;
   var SHIP_MAX = 6;                     // потолок числа корабликов на маршруте (по ТЗ 1..6)
   // доля маршрута в мс: диапазон вокруг прежней фиксированной скорости
   // одиночной точки (0.00016) — на минимальном объёме идёт медленнее,
@@ -764,6 +814,48 @@
     '  vec3 col = mix(uColor, uCore, clamp(a, 0.0, 1.0));' +
     '  gl_FragColor = vec4(col, clamp(a, 0.0, 1.0)); }';
 
+  /*
+   * Внешнее свечение атмосферы от края диска наружу — правка 30.09
+   * («свечение планеты не такое», кадры 553:1286 и 613:2268). Прежнее
+   * свечение по Френелю на оболочке было ярче всего у её наружного края
+   * и рисовало вокруг шара резкое синее кольцо. Здесь для каждой точки
+   * оболочки считается, на каком расстоянии от центра планеты проходит
+   * луч взгляда: у самой кромки свечение полное и гаснет наружу
+   * экспонентой шириной uWidth (доля радиуса). Оболочка берётся с большим
+   * запасом, поэтому к её краю свечение сходит на нет и края не видно.
+   * Центр планеты в системе камеры — vC: сетка оболочки лежит в центре
+   * world, её модельная матрица переносит начало координат туда же.
+   */
+  var GLOW_VERT =
+    'varying vec3 vP; varying vec3 vC;' +
+    'void main(){ vec4 mv = modelViewMatrix * vec4(position, 1.0); vP = mv.xyz;' +
+    '  vC = (modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;' +
+    '  gl_Position = projectionMatrix * mv; }';
+  var GLOW_FRAG =
+    'uniform vec3 uColor; uniform float uStr; uniform float uWidth; uniform float uR;' +
+    'varying vec3 vP; varying vec3 vC;' +
+    'void main(){' +
+    '  vec3 d = normalize(vP);' +
+    '  float dist = length(vC - d * dot(vC, d));' +      // от луча до центра планеты
+    '  float x = max(dist - uR, 0.0) / uWidth;' +
+    '  float a = exp(-x) * uStr;' +
+    '  gl_FragColor = vec4(uColor, clamp(a, 0.0, 1.0)); }';
+
+  function glowMaterial(color, strength, width) {
+    return new THREE.ShaderMaterial({
+      transparent: true, blending: THREE.AdditiveBlending,
+      side: THREE.BackSide, depthWrite: false,
+      uniforms: {
+        uColor: { value: new THREE.Color(color) },
+        uStr: { value: strength },
+        uWidth: { value: width },
+        uR: { value: R }
+      },
+      vertexShader: GLOW_VERT,
+      fragmentShader: GLOW_FRAG
+    });
+  }
+
   function edgeMaterial(color, core, light, o) {
     return new THREE.ShaderMaterial({
       transparent: true, blending: THREE.AdditiveBlending,
@@ -798,6 +890,7 @@
    * степень даёт светящуюся сердцевину, пологая — ореол вокруг неё.
    */
   var ARC_BASE = 0.01;                  // радиус, с которым построена трубка
+  var ARC_LIFT = 0.004;                 // на сколько (доля R) концы дуги над сушей — как точки стран
   var ARC_HALO = 3.0;                   // во сколько раз ореол шире сердцевины
   var uPxK = { value: 0.00064 };        // 2·tan(fov/2)/высота холста, общий uniform
 
@@ -879,12 +972,25 @@
     onReady = opts.onReady || onReady;
     if (gcfg.homeX != null) HOME.fx = gcfg.homeX;
     if (gcfg.homeY != null) HOME.fy = gcfg.homeY;
+    /* куда смотрит камера в домашнем ракурсе — широта и долгота точки
+       в центре диска (правка 30.09, кадр 553:1286: Африка по центру,
+       Россия сверху) */
+    if (gcfg.homeLat != null && gcfg.homeLon != null) {
+      var home = faceAngles(gcfg.homeLat, gcfg.homeLon);
+      HOME.phi = home.phi;
+      HOME.theta = home.theta;
+    }
     ARC_START = num(gcfg.arcStart, 1);
     ARC_START_LEN = num(gcfg.arcStartLen, 0.02);
     ARC_WIDTH = num(gcfg.arcWidth, 1);
     ARC_OPACITY = num(gcfg.arcOpacity, 1);
     ARC_HALO_K = num(gcfg.arcHalo, 1);
     DOT_SCALE = num(gcfg.dotScale, 1);
+    OTHER_ARCS = num(gcfg.otherArcs, 0.15);
+    SEL_HALF = num(gcfg.selHalf, 3.0);
+    OTHER_DOTS = num(gcfg.otherDots, 0.18);
+    view.phi = HOME.phi;
+    view.theta = HOME.theta;
     view.fx = HOME.fx;
     view.fy = HOME.fy;
     view.zoom = gcfg.defaultZoom;
@@ -895,8 +1001,15 @@
     renderer.setClearColor(0x000000, 0);
 
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-    camera.position.set(0, 0, view.zoom);
+    // Угол обзора — из темы (globe.fov), по умолчанию прежние 38°.
+    // Узкий угол с дальней камерой даёт почти ортографический вид: край
+    // диска на 80° от центра, а не на 70°, — как в кадре 553:1286, где
+    // по левому краю видна Южная Америка (правка 30.09). zoom при этом
+    // остаётся в прежних числах, реальное расстояние считает camDist.
+    FOV = num(gcfg.fov, FOV0);
+    ZK = Math.tan(FOV0 * DEG / 2) / Math.tan(FOV * DEG / 2);
+    camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 200);
+    camera.position.set(0, 0, camDist(view.zoom));
 
     pivotTilt = new THREE.Group();
     pivotSpin = new THREE.Group();
@@ -919,17 +1032,41 @@
      * Только у синей темы: у зелёной свой фон (фактура card из CSS),
      * его не трогаем — не по теме и не по духу задачи.
      */
+    /*
+     * Правка 30.09 («фон в плохом качестве»): сферу заменил плоский слой
+     * во весь экран. На сфере снимок 1920 px обходил все 360°, и в кадр
+     * (62° по горизонтали) попадала шестая часть его ширины — растянутая
+     * почти вшестеро. Теперь снимок лежит на экране один к одному, а
+     * «живой фон» остался: при повороте глобуса слой сдвигается ровно
+     * на столько, на сколько сдвинулась бы сфера (см. BG_* и render).
+     * Края снимка зеркалятся (шейдер), поэтому шва при сдвиге нет —
+     * на звёздном небе отражение незаметно.
+     */
     if (cfg.theme === 'navy') {
-      var BG_RADIUS = 50;               // с запасом внутри far=100 камеры, снаружи max zoom (7.5)
-      var bgMat = new THREE.MeshBasicMaterial({
-        side: THREE.BackSide, depthWrite: false,
-        // приглушаем яркость снимка серым множителем: без этого звёздная
-        // туманность спорит с золотыми дугами и подписи читаются хуже
-        color: new THREE.Color(0.38, 0.38, 0.38)
-      });
-      bgSphere = new THREE.Mesh(new THREE.SphereGeometry(BG_RADIUS, 48, 32), bgMat);
-      bgSphere.renderOrder = -1;
-      world.add(bgSphere);
+      bgSphere = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.ShaderMaterial({
+        depthTest: false, depthWrite: false,
+        uniforms: {
+          tMap: { value: null },
+          uOffset: { value: new THREE.Vector2() },
+          // приглушаем яркость снимка: без этого звёздная туманность
+          // спорит с золотыми дугами. Тема задаёт свой множитель
+          // (globe.bgBrightness): по кадрам 30.09 космос светлее
+          uBright: { value: num(gcfg.bgBrightness, 0.38) }
+        },
+        vertexShader:
+          'varying vec2 vUv;' +
+          'void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.999, 1.0); }',
+        fragmentShader:
+          'uniform sampler2D tMap; uniform vec2 uOffset; uniform float uBright;' +
+          'varying vec2 vUv;' +
+          'void main(){' +
+          '  vec2 uv = 1.0 - abs(mod(vUv + uOffset, 2.0) - 1.0);' +   // зеркальный повтор
+          '  gl_FragColor = vec4(texture2D(tMap, uv).rgb * uBright, 1.0); }'
+      }));
+      bgSphere.frustumCulled = false;
+      bgSphere.renderOrder = -10;
+      bgSphere.visible = false;         // до загрузки снимка
+      scene.add(bgSphere);
     }
 
     // общий множитель света: тема может сделать планету ярче, не трогая соседнюю
@@ -941,7 +1078,9 @@
 
     TEX_GOLD = glowTexture('255,205,120');
     TEX_WHITE = glowTexture('255,240,214');
-    TEX_SHIP = shipTexture('255,244,224');
+    TEX_END = endTexture();
+    TEX_SHIP = shipTexture(false);          // нос вправо
+    TEX_SHIP_L = shipTexture(true);         // нос влево
 
     // ночная Земля: холодная серо-голубая суша (карта)
     // + тёпло-белые огни городов с ореолом (emissive)
@@ -977,12 +1116,13 @@
     // темы: tools/build_dist.py ищет ссылки на assets/ прямо в тексте кода.
     if (bgSphere) {
       loader.load(U.asset('assets/textures/bg_space.webp'), function (t) {
-        if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace;
+        // цветовое пространство не задаём: шейдер отдаёт значения снимка
+        // как есть, без перекодирования — так и должно выглядеть на экране
         t.generateMipmaps = false;
         t.minFilter = THREE.LinearFilter;
         t.magFilter = THREE.LinearFilter;
-        bgSphere.material.map = t;
-        bgSphere.material.needsUpdate = true;
+        bgSphere.material.uniforms.tMap.value = t;
+        bgSphere.visible = true;
         texDone();
       }, null, texDone);
     }
@@ -1021,7 +1161,21 @@
       world.add(atmo);
     }
     var haloStr = num(gcfg.haloStrength, 0.15);
-    if (haloStr > 0) {
+    // Дымка атмосферы внутри диска у кромки (кадры 30.09): голубая
+    // вуаль по Френелю на оболочке чуть больше планеты, видна лицевая
+    // сторона — поэтому светлеет сам край диска, а не кольцо снаружи.
+    if (gcfg.hazeStrength) {
+      var haze = new THREE.Mesh(new THREE.SphereGeometry(R * 1.002, 128, 96),
+        rimMaterial(colors.glow || colors.atmosphere, num(gcfg.hazePower, 2.5), gcfg.hazeStrength, true));
+      haze.renderOrder = 7;
+      world.add(haze);
+    }
+    if (gcfg.glowStrength) {
+      // свечение от кромки наружу (синяя тема, правка 30.09) — вместо halo
+      halo = new THREE.Mesh(new THREE.SphereGeometry(R * 1.35, 64, 48),
+        glowMaterial(colors.glow || colors.atmosphere, gcfg.glowStrength, num(gcfg.glowWidth, 0.03)));
+      world.add(halo);
+    } else if (haloStr > 0) {
       halo = new THREE.Mesh(new THREE.SphereGeometry(R * num(gcfg.haloRadius, 1.13), 48, 32),
         rimMaterial(colors.halo, num(gcfg.haloPower, 4.5), haloStr));
       world.add(halo);
@@ -1063,6 +1217,17 @@
     }));
     originDot.position.copy(toVec3(o.lat, o.lon, R * 1.004));
     world.add(originDot);
+    // Концы выбранного маршрута (кадр 613:2268): светлые точки с золотым
+    // ореолом у порта отправления и в стране назначения. Точки стран при
+    // выборе гаснут, а у линии должны быть видимые концы. Обычное
+    // смешивание: сложением белая точка пропадает на золотой заливке
+    // страны.
+    var endMat = new THREE.SpriteMaterial({
+      map: TEX_END, transparent: true, sizeAttenuation: false, depthWrite: false
+    });
+    destDot = [new THREE.Sprite(endMat), new THREE.Sprite(endMat)];
+    destDot[0].position.copy(toVec3(o.lat, o.lon, R * 1.004));
+    destDot.forEach(function (d) { d.visible = false; d.renderOrder = 10; world.add(d); });
 
     // «корабли» — силуэты судов, бегущие друг за другом по выбранному
     // маршруту. Спрайтов заводим сразу SHIP_MAX штук и просто прячем
@@ -1071,10 +1236,14 @@
     // по стране дороже, чем один раз переключить visible.
     ships = [];
     for (var si = 0; si < SHIP_MAX; si++) {
+      // обычное смешивание, не сложение: светлый корпус иначе выгорает
+      // в белое пятно на дневной суше синей темы
       var sh = new THREE.Sprite(new THREE.SpriteMaterial({
         map: TEX_SHIP, transparent: true, sizeAttenuation: false,
-        blending: THREE.AdditiveBlending, depthWrite: false
+        depthWrite: false
       }));
+      sh.center.set(0.5, 1 - SHIP_KEEL);    // точка на маршруте — киль, судно стоит на линии
+      sh.renderOrder = 9;
       sh.visible = false;
       world.add(sh);
       ships.push(sh);
@@ -1121,13 +1290,17 @@
   }
 
   /** Размеры в пикселях: спрайты и точки — CSS-пиксели, дуги — через uniform. */
-  var PX = { origin: 28, ship: 20, endBig: 38, endSmall: 22, particle: 10 };
+  var PX = { origin: 28, ship: 64, end: 30, endBig: 38, endSmall: 22, particle: 10 };
 
   function setPxSizes(h) {
     // мировая длина, дающая один пиксель по вертикали на расстоянии 1 от камеры
     uPxK.value = 2 * Math.tan(camera.fov * DEG / 2) / h;
     if (originDot) originDot.scale.setScalar(PX.origin * DOT_SCALE * uPxK.value);
-    for (var si = 0; si < ships.length; si++) ships[si].scale.setScalar(PX.ship * uPxK.value);
+    if (destDot) destDot.forEach(function (d) { d.scale.setScalar(PX.end * uPxK.value); });
+    // PX.ship — ширина судна; высота по пропорции холста
+    for (var si = 0; si < ships.length; si++) {
+      ships[si].scale.set(PX.ship * uPxK.value, PX.ship * SHIP_H / SHIP_W * uPxK.value, 1);
+    }
   }
 
   function applyViewOffset() {
@@ -1467,6 +1640,10 @@
 
   function endPoints(list, size, opacity) {
     if (!list.length) return null;
+    // endDisc (синяя тема, кадр 553:1286): на конце каждой линии белая
+    // точка с золотым ореолом, как у выбранного маршрута, — обычным
+    // смешиванием: сложением на светлой суше точка выгорала бы в пятно
+    var disc = !!gcfg.endDisc;
     var pos = [];
     for (var i = 0; i < list.length; i++) {
       var d = list[i].dest.clone().multiplyScalar(1.004);
@@ -1476,9 +1653,9 @@
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     // sizeAttenuation:false — size прямо в CSS-пикселях, зум на него не влияет
     var p = new THREE.Points(g, new THREE.PointsMaterial({
-      size: size, sizeAttenuation: false, map: TEX_GOLD,
-      color: 0xFFD9A0, transparent: true, opacity: opacity,
-      blending: THREE.AdditiveBlending, depthWrite: false
+      size: size, sizeAttenuation: false, map: disc ? TEX_END : TEX_GOLD,
+      color: disc ? 0xFFFFFF : 0xFFD9A0, transparent: true, opacity: opacity,
+      blending: disc ? THREE.NormalBlending : THREE.AdditiveBlending, depthWrite: false
     }));
     p.renderOrder = 4;
     world.add(p);
@@ -1496,6 +1673,7 @@
     selected = null;
     shipCount = 0;
     for (var si = 0; si < ships.length; si++) ships[si].visible = false;
+    if (destDot) destDot[0].visible = destDot[1].visible = false;
     drawHighlight(null);
 
     var origin = toVec3(cfg.origin.lat, cfg.origin.lon, R);
@@ -1514,14 +1692,44 @@
 
       var dest = toVec3(it.lat, it.lon, R);
       var angle = Math.acos(Math.max(-1, Math.min(1, origin.dot(dest))));
-      var alt = 0.03 + 0.235 * (angle / Math.PI);   // высота дуги по дальности
+      // высота дуги по дальности; наименьшую тема может поднять
+      // (globe.arcAltMin): в кадре 613:2268 короткий маршрут заметно
+      // выгнут над шаром, а не стелется по суше
+      // arcAltK — насколько дальние маршруты выше ближних; в кадре
+      // 553:1286 дуги стелются низко и изгибаются по шару, а не торчат
+      var alt = num(gcfg.arcAltMin, 0.03) + num(gcfg.arcAltK, 0.235) * (angle / Math.PI);
 
       var pts = [];
       var N = gcfg.arcSegments;
+      // arcLatLon: путь ведётся равномерно по широте и долготе, а не по
+      // кратчайшей дуге. Так нарисованы маршруты в кадрах 553:1286
+      // и 613:2268 (правка 30.09): веер из России расходится во все
+      // стороны, дальние линии сначала уходят на запад или восток и лишь
+      // потом спускаются, а не тянутся прямыми лучами через полюс.
+      var o0 = cfg.origin, dLon = ((it.lon - o0.lon + 540) % 360) - 180;
+      var dLat = it.lat - o0.lat;
+      // arcBow — боковой изгиб веера (доля длины пути): дуги выгибаются
+      // наружу — на запад или восток и вверх, — как в кадре 553:1286.
+      // Нормаль к пути в плоскости «широта, долгота» берётся с той
+      // стороны, что смотрит на север и в сторону назначения.
+      var bow = num(gcfg.arcBow, 0), bLat = 0, bLon = 0;
+      if (gcfg.arcLatLon && bow) {
+        var ex = dLon * Math.cos(o0.lat * DEG), len = Math.sqrt(dLat * dLat + ex * ex) || 1;
+        bLat = -ex / len; bLon = dLat / len;
+        if (bLat + bLon * (dLon < 0 ? -1 : 1) < 0) { bLat = -bLat; bLon = -bLon; }
+        bLat *= bow * len;
+        bLon *= bow * len;
+      }
       for (var i = 0; i <= N; i++) {
         var t = i / N;
-        var p = slerp(origin, dest, t);
-        p.multiplyScalar(1 + alt * Math.sin(Math.PI * t));
+        var sb = Math.sin(Math.PI * t);
+        var p = gcfg.arcLatLon
+          ? toVec3(o0.lat + dLat * t + bLat * sb, o0.lon + dLon * t + bLon * sb, R)
+          : slerp(origin, dest, t);
+        // ARC_LIFT: концы дуги не лежат на самой поверхности — иначе у края
+        // диска шар перекрывал начало маршрута и линия обрывалась, не дойдя
+        // до точки отправления (правка 30.09)
+        p.multiplyScalar(1 + ARC_LIFT + alt * Math.sin(Math.PI * t));
         pts.push(p);
       }
       var curve = new THREE.CatmullRomCurve3(pts);
@@ -1547,17 +1755,25 @@
 
     // светящиеся точки на концах: два размера — крупные направления заметнее
     var big = routes.slice(0, 8), small = routes.slice(8);
-    endPointsBig = endPoints(big, PX.endBig * DOT_SCALE, 0.95 * DOT_SCALE);
-    endPointsSmall = endPoints(small, PX.endSmall * DOT_SCALE, 0.75 * DOT_SCALE);
+    if (gcfg.endDisc) {
+      // размеры точки в px: ядро около трети спрайта, остальное — ореол
+      endPointsBig = endPoints(big, num(gcfg.endBig, 34), 1);
+      endPointsSmall = endPoints(small, num(gcfg.endSmall, 26), 0.92);
+    } else {
+      endPointsBig = endPoints(big, PX.endBig * DOT_SCALE, 0.95 * DOT_SCALE);
+      endPointsSmall = endPoints(small, PX.endSmall * DOT_SCALE, 0.75 * DOT_SCALE);
+    }
 
     // бегущие частицы: один Points-объект на все дуги
     if (routes.length) {
       var g = new THREE.BufferGeometry();
       g.setAttribute('position',
         new THREE.Float32BufferAttribute(new Float32Array(routes.length * PPA * 3), 3));
+      // particleOpacity — тема может приглушить бегущие искры: в кадре
+      // 553:1286 линии ровные, искр на них почти не видно
       particles = new THREE.Points(g, new THREE.PointsMaterial({
         size: PX.particle * DOT_SCALE, sizeAttenuation: false, map: TEX_GOLD,
-        color: 0xFFD9A0, transparent: true, opacity: 0.9 * DOT_SCALE,
+        color: 0xFFD9A0, transparent: true, opacity: 0.9 * num(gcfg.particleOpacity, DOT_SCALE),
         blending: THREE.AdditiveBlending, depthWrite: false
       }));
       particles.renderOrder = 5;
@@ -1608,6 +1824,12 @@
   /* ------------------------ выделение и фокус ------------------------ */
 
   var SEL_HALF = 3.0;                   // полуширина выбранной дуги, пиксели
+  /* Насколько видны остальные маршруты и точки-страны, пока выбрана
+     одна страна: доля обычной яркости. По умолчанию приглушены; в синей
+     теме по макету 613:2268 (правка 30.09) их не видно вовсе — поля
+     globe.otherArcs / globe.otherDots темы в config.json. */
+  var OTHER_ARCS = 0.15;
+  var OTHER_DOTS = 0.18;
 
   function setSelected(name) {
     selected = name && routeByName[name] ? name : null;
@@ -1624,17 +1846,17 @@
       } else if (isSel) {
         u.uColor.value.set(colors.routeActive);
         u.uOpacity.value = 1.0;
-        u.uHalf.value = SEL_HALF * ARC_HALO;
+        u.uHalf.value = SEL_HALF * ARC_HALO;   // SEL_HALF тема может сузить (globe.selHalf)
       } else {
         u.uColor.value.set(colors.route);
-        u.uOpacity.value = r.baseOpacity * 0.15;   // остальные приглушены
+        u.uOpacity.value = r.baseOpacity * OTHER_ARCS;   // остальные приглушены
         u.uHalf.value = r.baseHalf * ARC_HALO * ARC_HALO_K;
       }
     });
-    var dim = selected ? 0.18 : 1;
-    if (endPointsBig) endPointsBig.material.opacity = 0.95 * dim;
-    if (endPointsSmall) endPointsSmall.material.opacity = 0.75 * dim;
-    if (particles) particles.material.opacity = 0.9 * (selected ? 0.3 : 1);
+    var dim = selected ? OTHER_DOTS : 1;
+    if (endPointsBig) endPointsBig.material.opacity = (gcfg.endDisc ? 1 : 0.95) * dim;
+    if (endPointsSmall) endPointsSmall.material.opacity = (gcfg.endDisc ? 0.92 : 0.75) * dim;
+    if (particles) particles.material.opacity = 0.9 * num(gcfg.particleOpacity, DOT_SCALE) * (selected ? 0.3 * OTHER_DOTS / 0.18 : 1);
 
     var r = selected ? routeByName[selected] : null;
     // сколько корабликов идёт по маршруту и с какой скоростью — по объёму
@@ -1646,6 +1868,10 @@
     shipCount = r ? U.clamp(Math.round(1 + r.norm * (SHIP_MAX - 1)), 1, SHIP_MAX) : 0;
     shipSpeed = r ? SHIP_SPEED_MIN + (SHIP_SPEED_MAX - SHIP_SPEED_MIN) * r.norm : 0;
     for (var si = 0; si < ships.length; si++) ships[si].visible = si < shipCount;
+    if (destDot) {
+      destDot[0].visible = destDot[1].visible = !!r;
+      if (r) destDot[1].position.copy(r.dest).multiplyScalar(1.004);
+    }
 
     drawHighlight(r ? r.iso : null);
     if (r) {
@@ -1661,6 +1887,7 @@
    * уезжает левее середины, чтобы кадр не заваливался вправо.
    * Подстраивается полями globe.countryX / globe.countryY в config.json.
    */
+  var focusFy = null;                   // fy последнего кадра «Страна» (см. focus)
   function countryFx() { return gcfg.countryX != null ? gcfg.countryX : 0.40; }
   function countryFy() { return gcfg.countryY != null ? gcfg.countryY : 0.51; }
 
@@ -1677,8 +1904,20 @@
     // глобус на «Карте» крупнее, но экран «Путь» от этого меняться не должен.
     var far = gcfg.focusMaxZoom != null ? gcfg.focusMaxZoom : gcfg.defaultZoom;
     var zoom = U.clamp(gcfg.focusZoom + angle * 0.55, gcfg.focusZoom, far);
+    /* countryLatShift — на сколько градусов южнее середины маршрута
+       смотрит камера. Тогда шар ниже и крупнее, а маршрут идёт по его
+       верхней части, как в кадре 613:2268 (правка 30.09). У дальних
+       маршрутов сдвиг меньше, а от полутора радиан (Бразилия,
+       Индонезия) его нет вовсе: иначе страна уезжает вниз под кнопку
+       и шкалу лет. Без поля всё как раньше — камера на середину. */
+    var shift = gcfg.countryLatShift || 0;
+    var k = U.clamp(1 - (angle - 0.5) / 1.0, 0, 1);
+    if (shift) a = faceAngles(ll.lat - shift * k, ll.lon);
+    var fy = countryFy();
+    if (shift && gcfg.countryYFar != null) fy = gcfg.countryYFar + (fy - gcfg.countryYFar) * k;
     animateTo({ phi: U.clamp(a.phi, -1.2, 1.2), theta: a.theta, zoom: zoom,
-                fx: countryFx(), fy: countryFy() }, 1000);
+                fx: countryFx(), fy: fy }, 1000);
+    focusFy = fy;
     autoRotate = false;
   }
 
@@ -1691,7 +1930,7 @@
     if (mode === 'A') {
       animateTo({ fx: HOME.fx, fy: HOME.fy }, 700);
     } else {
-      animateTo({ fx: countryFx(), fy: countryFy() }, 700);
+      animateTo({ fx: countryFx(), fy: focusFy != null ? focusFy : countryFy() }, 700);
     }
   }
 
@@ -1736,11 +1975,23 @@
   var SPIN_DAMP = 4.0;                  // чем больше, тем быстрее гаснет
   var lastMove = 0;
 
+  /*
+   * zoom — расстояние камеры при угле обзора 38°. При другом угле
+   * (globe.fov) камера ставится так, чтобы шар на экране был того же
+   * размера: радиус диска ∝ 1 / (√(d² − 1) · tan(fov / 2)). Поэтому все
+   * числа zoom в config.json, пороги подписей и пределы масштаба
+   * остаются прежними.
+   */
+  var FOV0 = 38, FOV = 38, ZK = 1;
+  function camDist(z) {
+    return ZK === 1 ? z : Math.sqrt(1 + (z * z - 1) * ZK * ZK);
+  }
+
   function dragK() {
     var rect = canvas.getBoundingClientRect();
     var h = canvas.clientHeight || 1080;
     var s = rect.height > 0 ? rect.height / h : 1;
-    return uPxK.value * Math.max(view.zoom - R, 0.2) / s;
+    return uPxK.value * Math.max(camera.position.z - R, 0.2) / s;
   }
 
   function bindPointer() {
@@ -2012,7 +2263,14 @@
 
     pivotTilt.rotation.x = view.phi;
     pivotSpin.rotation.y = view.theta;
-    camera.position.z = view.zoom;
+    // фон едет за глобусом: поворот на угол a сдвигает небо на a / FOV
+    // ширины (высоты) кадра — столько же, сколько сдвигала прежняя сфера
+    if (bgSphere) {
+      var vf = FOV0 * DEG;             // как у прежней сферы при 38°: небо не мчится при узком угле
+      var hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+      bgSphere.material.uniforms.uOffset.value.set(-view.theta / hf, view.phi / vf);
+    }
+    camera.position.z = camDist(view.zoom);
 
     stepDrawAnim(now);
 
@@ -2033,11 +2291,22 @@
 
     if (selected && routeByName[selected] && shipCount > 0) {
       var rSel = routeByName[selected];
-      // идут друг за другом с равным интервалом: у каждого свой сдвиг
-      // фазы si/shipCount по той же дуге и с одной на всех скоростью
-      for (var si = 0; si < shipCount; si++) {
-        var f = (now * shipSpeed + si / shipCount) % 1;
-        ships[si].position.copy(pointAt(rSel, f, partVec));
+      // Суда крупные (по макету 72 px), и на коротком маршруте шесть
+      // штук налезли бы друг на друга. Поэтому сколько их идёт — по объёму
+      // (shipCount), но не больше, чем помещается на линии на экране
+      // с шагом SHIP_GAP.
+      var n = Math.max(1, Math.min(shipCount, Math.floor(screenLen(rSel) / SHIP_GAP)));
+      for (var si = 0; si < ships.length; si++) {
+        var sp = ships[si];
+        sp.visible = si < n;
+        if (si >= n) continue;
+        // идут друг за другом с равным интервалом: у каждого свой сдвиг
+        // фазы si/n по той же дуге и с одной на всех скоростью
+        var f = (now * shipSpeed + si / n) % 1;
+        sp.position.copy(pointAt(rSel, f, partVec));
+        // нос — туда, куда судно движется по экрану
+        var map = headsLeft(rSel, f) ? TEX_SHIP_L : TEX_SHIP;
+        if (sp.material.map !== map) { sp.material.map = map; sp.material.needsUpdate = true; }
       }
     }
 
@@ -2047,6 +2316,35 @@
     labelMs = labelMs * 0.9 + (performance.now() - tl) * 0.1;
   }
   var labelMs = 0;                      // время раскладки подписей за кадр, мс (Globe.stats)
+
+  var SHIP_GAP = 70;                    // наименьший шаг между судами на экране, px
+  var scrA = new THREE.Vector3(), scrB = new THREE.Vector3();
+
+  /** Точка маршрута на экране, в пикселях (x, y — в out). */
+  function toScreen(r, f, out) {
+    pointAt(r, f, out).applyMatrix4(world.matrixWorld).project(camera);
+    out.x = (out.x + 1) / 2 * (canvas.clientWidth || 1920);
+    out.y = (1 - out.y) / 2 * (canvas.clientHeight || 1080);
+    return out;
+  }
+
+  /** Длина маршрута на экране, px: по восьми отрезкам дуги. */
+  function screenLen(r) {
+    var len = 0;
+    toScreen(r, 0, scrA);
+    for (var i = 1; i <= 8; i++) {
+      toScreen(r, i / 8, scrB);
+      len += Math.hypot(scrB.x - scrA.x, scrB.y - scrA.y);
+      scrA.copy(scrB);
+    }
+    return len;
+  }
+
+  function headsLeft(r, f) {
+    toScreen(r, f, scrA);
+    toScreen(r, Math.min(1, f + 0.02), scrB);
+    return scrB.x < scrA.x;
+  }
 
   /* ------------------------------ API ------------------------------ */
 

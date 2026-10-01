@@ -487,12 +487,15 @@ body.story-screen { background: var(--sc-bg, #141D23); }
    стало восемь в четыре столбца, поэтому они уже прежнего: отступ
    и кегль уменьшены, чтобы «Стекловидность» и «Тяжелые металлы»
    вставали в одну-две строки и не вылезали за плитку. */
-#sec-story .sc-grid.is-tall { gap: 4px 2px; }
+/* сетка показателей лабораторных испытаний, кадр 621:2727 (правка 30.09):
+   790x216, плитки 106 в высоту, отступ 24, текст Light 16/28 */
+#sec-story .sc-grid.is-tall { gap: 4px; }
 #sec-story .sc-grid.is-tall .sc-pick {
-  min-height: 112px;
-  padding: 0 16px;
-  font-size: 20px;
-  line-height: 24px;
+  min-height: 106px;
+  padding: 0 24px;
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 28px;
   text-align: left;
   /* «Стекловидность» — длинное слово: без переноса оно обрезалось бы
      краем плитки */
@@ -1796,13 +1799,93 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 }
 #sec-story .sc-mark img { display: block; width: 100%; height: 100%; }
 
-/* предмет на сцене: таблетка препарата, скруглённый кусок снимка */
-#sec-story .sc-fig.is-item {
+/* ------------- станция 4: касания и подсказки на ангаре -------------
+   Правка 30.09, кадры 623:3644 и 623:3677. */
+
+/* «Горячее» место: решётка вентиляции и пол под таблетку. В покое
+   прозрачное — подсветку нарисовали дизайнеры (svg-слои .sc-mark);
+   закрытая решётка обводится золотом. */
+#sec-story .sc-spot {
+  position: absolute;
+  z-index: 4;
+  border-radius: 12px;
+  background: none;
+  box-shadow: inset 0 0 0 2px rgba(221, 193, 149, 0);
+  transition: box-shadow .2s ease;
+}
+#sec-story .sc-spot.is-on {
+  box-shadow: inset 0 0 0 2px rgba(240, 214, 160, .9),
+    0 0 28px rgba(226, 190, 118, .45);
+}
+
+/* метка на ангаре (шаг осмотра): номер и название, голубое стекло */
+#sec-story .sc-focus {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 64px;
+  padding: 0 24px;
+  border-radius: 32px;
+  background: var(--sc-pick);
+  -webkit-backdrop-filter: var(--sc-btn-blur);
+  backdrop-filter: var(--sc-btn-blur);
+  box-shadow: var(--sc-pick-glow);
+  color: var(--sc-text);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 28.8px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+#sec-story .sc-focus.is-wide {
+  justify-content: flex-start;
+  width: 302px;
+  height: 77px;
+}
+
+/* плашка-подсказка на сцене: «Перенесите предмет сюда» */
+#sec-story .sc-chip {
+  position: absolute;
+  z-index: 4;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--sc-gold);
+  color: #000;
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 28px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Таблетка препарата: карточка 101x87 с золотой рамкой, повёрнута
+   на -12.92° — как в кадре. Лежит выше пола, чтобы её можно было
+   взять пальцем; при переносе идёт за пальцем без задержки. */
+#sec-story .sc-item {
+  position: absolute;
+  z-index: 5;
+  box-sizing: border-box;
+  border: 2px solid var(--sc-gold);
   border-radius: 12px;
   overflow: hidden;
-  transform: rotate(-4deg);
+  transform: rotate(-12.92deg);
+  transition: transform .25s ease, box-shadow .2s ease;
+  touch-action: none;
+  cursor: grab;
 }
-#sec-story .sc-fig.is-item img { object-fit: cover; }
+#sec-story .sc-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+#sec-story .sc-item.is-on { box-shadow: 0 0 0 4px rgba(221, 193, 149, .35), 0 0 28px rgba(226, 190, 118, .55); }
+#sec-story .sc-item.is-drag { transition: none; cursor: grabbing; box-shadow: 0 12px 32px rgba(0, 0, 0, .45); }
+#sec-story .sc-item.is-placed { cursor: default; }
 
 /* ------------------------- переключатель «До / После» ------------------------- */
 
@@ -1908,7 +1991,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 }
 
 /* пояснение под снимком на шагах хранения: мельче обычного текста панели */
-#sec-story .sc-panel.is-note .sc-panel-p {
+#sec-story .sc-panel.is-foot .sc-panel-p {
   margin: 0;
   font-size: 20px;
   line-height: 28px;
