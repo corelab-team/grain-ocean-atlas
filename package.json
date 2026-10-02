@@ -1,6 +1,6 @@
 {
   "name": "grain-ocean-atlas",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Автономное приложение выставочного стенда «Путь зерна»",
   "license": "UNLICENSED",
@@ -17,7 +17,7 @@
     "test": "node --test electron/files.test.cjs",
     "test:electron": "node electron/smoke.cjs",
     "pack:win": "pnpm verify:assets && electron-builder --win --x64 --dir",
-    "dist:win": "pnpm verify:assets && electron-builder --win --x64"
+    "dist:win": "pnpm verify:assets && electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
     "electron": "44.5.1",
@@ -52,12 +52,34 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "executableName": "GrainOceanAtlas",
       "signAndEditExecutable": false,
       "artifactName": "GrainOceanAtlas-${version}-win-${arch}.${ext}"
     },
-    "npmRebuild": false
+    "npmRebuild": false,
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "packElevateHelper": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Путь зерна",
+      "runAfterFinish": false,
+      "installerLanguages": [
+        "ru_RU"
+      ],
+      "language": "1049",
+      "artifactName": "GrainOceanAtlas-${version}-win-${arch}-Setup.${ext}"
+    }
   }
 }

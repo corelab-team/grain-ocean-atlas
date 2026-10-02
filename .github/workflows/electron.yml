@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [electron]
+    tags: ['electron-v*']
     paths:
       - 'electron/**'
       - 'package.json'
@@ -30,9 +31,44 @@ jobs:
       - name: Verify packaged application offline
         run: node electron/smoke.cjs release/win-unpacked/GrainOceanAtlas.exe
       - run: pnpm dist:win
+      - name: Verify installation, offline launch and uninstall
+        run: ./electron/test-installer.ps1
+      - name: Write checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem release/*.zip, release/*-Setup.exe | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content release/SHA256SUMS.txt -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
           name: grain-ocean-atlas-windows-x64
-          path: release/*.zip
+          path: |
+            release/*.zip
+            release/*-Setup.exe
+            release/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/electron-v')
+    needs: windows
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: grain-ocean-atlas-windows-x64
+          path: release
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$env:GITHUB_REF_NAME"
+          release/*-Setup.exe release/*.zip release/SHA256SUMS.txt
+          --repo "$env:GITHUB_REPOSITORY"
+          --title "Путь зерна — Windows $env:GITHUB_REF_NAME"
+          --notes-file electron/release-notes.md --verify-tag
