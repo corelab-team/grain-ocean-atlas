@@ -1,0 +1,38 @@
+name: Build offline Windows application
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [electron]
+    paths:
+      - 'electron/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'dist/app/**'
+      - '.github/workflows/electron.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm pack:win
+      - name: Verify packaged application offline
+        run: node electron/smoke.cjs release/win-unpacked/GrainOceanAtlas.exe
+      - run: pnpm dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grain-ocean-atlas-windows-x64
+          path: release/*.zip
+          if-no-files-found: error
+          retention-days: 14

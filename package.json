@@ -1,0 +1,63 @@
+{
+  "name": "grain-ocean-atlas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Автономное приложение выставочного стенда «Путь зерна»",
+  "license": "UNLICENSED",
+  "main": "electron/main.cjs",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "verify:assets": "node electron/verify-assets.cjs",
+    "prestart": "pnpm verify:assets",
+    "start": "electron .",
+    "start:windowed": "electron . --windowed",
+    "test": "node --test electron/files.test.cjs",
+    "test:electron": "node electron/smoke.cjs",
+    "pack:win": "pnpm verify:assets && electron-builder --win --x64 --dir",
+    "dist:win": "pnpm verify:assets && electron-builder --win --x64"
+  },
+  "devDependencies": {
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
+    "playwright-core": "1.63.0"
+  },
+  "build": {
+    "appId": "ru.corelab.grain-ocean-atlas",
+    "productName": "Grain Ocean Atlas",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/main.cjs",
+      "electron/files.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "dist/app",
+        "to": "atlas",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "executableName": "GrainOceanAtlas",
+      "signAndEditExecutable": false,
+      "artifactName": "GrainOceanAtlas-${version}-win-${arch}.${ext}"
+    },
+    "npmRebuild": false
+  }
+}
