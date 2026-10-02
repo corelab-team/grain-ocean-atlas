@@ -18,12 +18,18 @@ try {
     if ($process.ExitCode -ne 0) { throw "Installation failed: $($process.ExitCode)" }
     if (!(Test-Path -LiteralPath $installed)) { throw 'Installed EXE missing' }
     if (!(Test-Path -LiteralPath $uninstaller)) { throw 'Uninstaller missing' }
-    $shell = New-Object -ComObject WScript.Shell
+    $windowsShell = New-Object -ComObject Shell.Application
     $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Путь зерна.lnk'
     $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Путь зерна.lnk'
-    foreach ($shortcut in @($desktop, $menu)) {
+    # Exercise a filename outside the system ANSI code page as a regression check.
+    $unicodeProbe = Join-Path $fixture 'shortcut-字.lnk'
+    Copy-Item -LiteralPath $desktop -Destination $unicodeProbe
+    foreach ($shortcut in @($desktop, $menu, $unicodeProbe)) {
         if (!(Test-Path -LiteralPath $shortcut)) { throw "Shortcut missing: $shortcut" }
-        $shortcutTarget = $shell.CreateShortcut($shortcut).TargetPath
+        # Shell.Application reads Unicode names; WScript.CreateShortcut can return an empty target.
+        $folder = $windowsShell.Namespace([IO.Path]::GetDirectoryName($shortcut))
+        $item = $folder.ParseName([IO.Path]::GetFileName($shortcut))
+        $shortcutTarget = $item.GetLink.Path
         # Resolve junctions, short (8.3) names and drive aliases before comparing Windows paths.
         & node -e 'const fs=require("node:fs");const [actual,expected]=process.argv.slice(1);const real=p=>fs.realpathSync.native(p).toLowerCase();if(real(actual)!==real(expected)){throw Error(`Wrong shortcut target: ${actual}; expected ${expected}`)}' $shortcutTarget $installed
         if ($LASTEXITCODE -ne 0) { throw "Wrong shortcut target: $shortcut; actual $shortcutTarget; expected $installed" }
