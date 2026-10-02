@@ -23,7 +23,10 @@ try {
     $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Путь зерна.lnk'
     foreach ($shortcut in @($desktop, $menu)) {
         if (!(Test-Path -LiteralPath $shortcut)) { throw "Shortcut missing: $shortcut" }
-        if ($shell.CreateShortcut($shortcut).TargetPath -ne $installed) { throw "Wrong shortcut target: $shortcut" }
+        $shortcutTarget = $shell.CreateShortcut($shortcut).TargetPath
+        # Resolve junctions, short (8.3) names and drive aliases before comparing Windows paths.
+        & node -e 'const fs=require("node:fs");const [actual,expected]=process.argv.slice(1);const real=p=>fs.realpathSync.native(p).toLowerCase();if(real(actual)!==real(expected)){throw Error(`Wrong shortcut target: ${actual}; expected ${expected}`)}' $shortcutTarget $installed
+        if ($LASTEXITCODE -ne 0) { throw "Wrong shortcut target: $shortcut; actual $shortcutTarget; expected $installed" }
     }
     & node (Join-Path $PSScriptRoot 'smoke.cjs') $installed
     if ($LASTEXITCODE -ne 0) { throw 'Installed application offline test failed' }

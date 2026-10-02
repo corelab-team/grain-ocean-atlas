@@ -1,6 +1,6 @@
 {
   "name": "grain-ocean-atlas",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Автономное приложение выставочного стенда «Путь зерна»",
   "license": "UNLICENSED",
@@ -16,7 +16,7 @@
     "start:windowed": "electron . --windowed",
     "test": "node --test electron/files.test.cjs",
     "test:electron": "node electron/smoke.cjs",
-    "pack:win": "pnpm verify:assets && electron-builder --win --x64 --dir",
+    "pack:win": "pnpm verify:assets && electron-builder --win --x64 --dir --publish never",
     "dist:win": "pnpm verify:assets && electron-builder --win --x64 --publish never"
   },
   "devDependencies": {
