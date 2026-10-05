@@ -9851,7 +9851,7 @@ video.sc-cover-bg {
       прежние картинки останутся на месте. */
   function renderIntro(scr, root) {
     var cover = el('div', 'sc-cover');
-    if (scr.artwork) {
+    if (scr.artwork && !scr.video) {
       var art = el('div', 'sc-intro-art');
       scr.artwork.forEach(function (piece) {
         var image = new Image();
