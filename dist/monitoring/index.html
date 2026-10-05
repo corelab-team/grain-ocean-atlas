@@ -4556,7 +4556,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story #view[data-screen="quality-2"] .sc-panel.is-report { height: 555px; }
 #sec-story #view[data-screen="quality-2"] .sc-panel.is-report .sc-panel-p { font-size: 24px; line-height: 32px; }
 #sec-story #view[data-screen="route-food"] .sc-col.is-right { max-height: 705px; overflow-y: auto; overscroll-behavior: contain; }
-#sec-story #view[data-screen="route-fuel"] .sc-tabs { width: 978px; }
+#sec-story #view[data-screen="route-fuel"] .sc-tabs { width: 1040px; }
 #sec-story #view[data-screen="route-fuel"] .sc-marker.is-focus { height: 64px; border-radius: 32px; }
 
 #sec-story #view[data-screen="route-feed"] .sc-col.is-right { max-height: 681px; }
@@ -4586,6 +4586,24 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story #view[data-screen="seed-3"].is-self-search .sc-nav-next,
 #sec-story #view[data-screen="seed-3"].is-self-search .sc-box:not(:has([data-action="weedDrone"])) {
   display: none;
+}
+
+/* Figma 703:1762: complete technical-route descriptions in the right column. */
+#sec-story #view[data-screen="route-fuel"] .sc-col.is-right {
+  left: 1148px;
+  right: auto;
+  width: 722px !important;
+  max-height: 694px;
+  overflow-y: auto;
+  padding-right: 0;
+  overscroll-behavior: contain;
+}
+#sec-story .sc-panel-stack.is-technical-panels { width: 708px; }
+#sec-story .is-technical-panels > .sc-panel { flex: none; }
+#sec-story #view[data-screen="route-fuel"] .sc-marker.is-focus {
+  font-size: 24px;
+  line-height: 29px;
+  justify-content: center;
 }
 
 </style>

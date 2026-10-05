@@ -1172,10 +1172,10 @@
   function technicalOverlay(root) {
     var current = find(C.technical, tabKey());
     (current.markers || []).forEach(function (marker) {
-      var b = el('button', 'sc-marker is-focus', marker.label);
+      var b = el('button', 'sc-marker is-focus' + (st.technicalPart === marker.key ? ' is-on' : ''), marker.label);
       b.type = 'button'; b.style.left = marker.x + 'px'; b.style.top = marker.y + 'px';
       if (marker.w) b.style.width = marker.w + 'px';
-      b.addEventListener('click', function () { resetIdle(); st.details = !st.details; rerender(); });
+      b.addEventListener('click', function () { resetIdle(); st.technicalPart = st.technicalPart === marker.key ? null : marker.key; rerender(); });
       root.appendChild(b);
     });
   }
@@ -1389,7 +1389,16 @@
     },
     technicalAbout: function () {
       var t = find(C.technical, tabKey());
-      return panelEl(st.details ? { title: t.name, text: t.text, cls: 'is-technical' } : t.summary);
+      var stack = el('div', 'sc-panel-stack is-technical-panels');
+      var keys = st.technicalPart ? [st.technicalPart] : t.defaultPanels;
+      t.panels.forEach(function (part) {
+        if (keys.indexOf(part.key) < 0) return;
+        var panel = panelEl(part);
+        panel.style.height = 'auto';
+        panel.style.minHeight = part.h + 'px';
+        stack.appendChild(panel);
+      });
+      return stack;
     },
     foodCheck: function () {
       var f = foodTab();
@@ -1675,6 +1684,7 @@
         resetIdle();
         st.tab = t.key;
         st.level = null;
+        if (cur.id === 'route-fuel') st.technicalPart = null;
         rerender();
       });
       box.appendChild(b);
@@ -1871,7 +1881,7 @@
     },
 
     /* --- экраны 16 и 17: следующая вкладка маршрута --- */
-    technicalNext: function () { var i = C.technical.indexOf(find(C.technical, tabKey())); if (i + 1 < C.technical.length) { st.tab = C.technical[i + 1].key; st.details = false; rerender(); } else go('export-1'); },
+    technicalNext: function () { var i = C.technical.indexOf(find(C.technical, tabKey())); if (i + 1 < C.technical.length) { st.tab = C.technical[i + 1].key; st.technicalPart = null; rerender(); } else go('export-1'); },
     foodNext: function () { st.tab = foodTab().next.tab; st.level = null; rerender(); },
     feedNext: function () { st.tab = feedState().next.tab; st.sel = null; rerender(); },
 
