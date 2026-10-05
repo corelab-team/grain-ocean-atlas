@@ -1917,6 +1917,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   letter-spacing: 0;
   color: var(--text);
 }
+#sec-globe #country-name { color: #ddc195; }
 /* Год и пометка при нём стоят одной строкой */
 #sec-globe #summary-head { white-space: nowrap; }
 /* «(на 30.06.2026)» рядом с годом: год посчитан не целиком */
@@ -2170,8 +2171,8 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 
 /* Reset button from Figma 703:2518, beside the main-menu button. */
 #sec-globe #reset-view {
-  left: 1327px;
-  right: auto;
+  left: auto;
+  right: 64px;
   top: 64px;
   bottom: auto;
   width: 214px;
