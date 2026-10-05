@@ -24,6 +24,7 @@
 /* ---------------------------- переменные ---------------------------- */
 
 #sec-monitoring {
+  --mn-map-image: url(../assets/photos/concept/mon-map-bg.webp);
   --mn-gold: #ddc195;
   --mn-text: #ffffff;
   --mn-muted: rgba(255, 255, 255, .7);
@@ -62,7 +63,7 @@
   inset: 16px;
   border-radius: 32px;
   background-color: var(--mn-bg);
-  background-image: url(../assets/photos/concept/mon-map-bg.webp);
+  background-image: var(--mn-map-image);
   background-size: cover;
   background-position: center;
 }
@@ -72,8 +73,8 @@
    кадра в одну картинку по размеру карточки. Сквозь полупрозрачные
    регионы без филиалов он и просвечивает. */
 #sec-monitoring.on-presence #card {
-  background-image: url(../assets/photos/concept/presence-bg.webp);
-  background-size: 100% 100%;
+  background-image: var(--mn-map-image);
+  background-size: 2060px 1144px;
 }
 body.mon-screen { background: #141d23; }
 
@@ -1364,8 +1365,8 @@ body.mon-screen { background: #141d23; }
 #sec-monitoring.on-map .mn-demo { right: 200px; }
 
 /* Нейтральные варианты карты: slate по умолчанию, navy и earth через palette. */
-#sec-monitoring { --mn-data: #425965; --mn-none: #2b3138; --mn-bg: #101c27; }
-#sec-monitoring:not(.on-presence) #card { background-image: radial-gradient(ellipse at 62% 45%, #273d4c 0%, #152533 48%, #0c141d 100%); }
+#sec-monitoring { --mn-data: #144434; --mn-none: #2a3533; --mn-bg: #141d23; }
+#sec-monitoring:not(.on-presence) #card { background-image: var(--mn-map-image); background-size: 2060px 1144px; background-position: center; }
 #sec-monitoring[data-palette="navy"] { --mn-data: #29496f; --mn-none: #252b3c; --mn-bg: #111a31; }
 #sec-monitoring[data-palette="navy"]:not(.on-presence) #card { background-image: radial-gradient(ellipse at 62% 45%, #26395a, #141f37 50%, #0d1222); }
 #sec-monitoring[data-palette="earth"] { --mn-data: #695b45; --mn-none: #342f2b; --mn-bg: #241f1a; }
@@ -1379,3 +1380,23 @@ body.mon-screen { background: #141d23; }
 #sec-monitoring .mn-result { display: flex; flex-direction: column; gap: 8px; width: 100%; padding: 18px; margin-top: 8px; border-radius: 16px; background: rgba(255,255,255,.08); text-align: left; color: white; font: inherit; font-size: 25px; }
 #sec-monitoring .mn-result:focus, #sec-monitoring .mn-result:active { outline: 2px solid var(--mn-gold); background: rgba(221,193,149,.15); }
 #sec-monitoring .mn-result small { font-size: 19px; color: var(--mn-muted); }
+
+/* 02.10: положение сводки, шесть видимых строк рейтинга и полупрозрачный рельеф. */
+#sec-monitoring .mn-col { top: 160px; height: 841px; }
+#sec-monitoring .mn-col .mn-top { height: 383px; }
+#sec-monitoring .mn-col .mn-num { font-weight: 400; }
+#sec-monitoring .mn-cap, #sec-monitoring .mn-note, #sec-monitoring .t-name, #sec-monitoring .t-value { font-weight: 300; }
+#sec-monitoring:not(.on-region):not([data-palette="navy"]):not([data-palette="earth"]) #card { background: #0e2b2e; overflow: hidden; }
+#sec-monitoring:not(.on-region):not([data-palette="navy"]):not([data-palette="earth"]) #card::before {
+  content: ''; position: absolute; inset: 0; background: var(--mn-map-image) center / 2060px 1144px;
+  opacity: .5; filter: brightness(.92) contrast(.8); pointer-events: none;
+}
+
+/* Нижние исходные слои под полупрозрачным рельефом: 703:2068 и 703:724. */
+#sec-monitoring { --mn-map-underlay: url(../assets/photos/concept/mon-underlay-02-10.webp); --mn-pres-underlay: url(../assets/photos/concept/seed-1-scene.webp); }
+#sec-monitoring.on-map:not([data-palette="navy"]):not([data-palette="earth"]) #card {
+  background: var(--mn-map-underlay) -16px -13px / 2776px 1106px no-repeat #0e2b2e;
+}
+#sec-monitoring.on-presence #card {
+  background: var(--mn-pres-underlay) -508px -388px / 2946px 1694px no-repeat #0e2b2e;
+}

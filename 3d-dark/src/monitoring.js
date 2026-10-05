@@ -89,9 +89,9 @@
      регионов в центре контура стоит золотой колосок (drawStrongRye). */
   /* Цвета сняты по пикселям кадра 27-monitoring-2026 (макет 553:1480):
      заливки там сплошные, без просвета фона. */
-  var C_DATA = [66, 89, 101];           // #425965 — slate
+  var C_DATA = [20, 68, 52];           // #425965 — slate
   var C_STRONG = [230, 180, 22];       // #e6b416 — цвет колоска и метки в легенде
-  var C_NONE = [43, 49, 56];           // #2b3138
+  var C_NONE = [42, 53, 51];           // #2b3138
 
   /* Регион считается охваченным госмониторингом, если за выбранный год
      в таблицах заказчика есть цифры хотя бы по одному виду пшеницы.
@@ -446,6 +446,7 @@
       drawPresMap(k);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       drawLabs();
+      drawTransportPoints();
       return;
     }
 
@@ -558,30 +559,37 @@
   var RYE_SCALE = 0.60;                 // 24x60 -> 14.4x36 px кадра
   var ryePath = null;
 
+  var strongWheatImage = new Image();
+  strongWheatImage.onload = function () { need = true; };
+  strongWheatImage.src = U.asset('assets/photos/concept/mon-strong-wheat.webp');
+
   function drawStrongRye() {
-    if (!ryePath) ryePath = new Path2D(RYE);
-    var pulse = (1 + Math.sin(performance.now() / 650) * .08);
-    var sc = RYE_SCALE * dpr * pulse;
-    ctx.fillStyle = rgb(C_STRONG);
+    if (!strongWheatImage.complete || !strongWheatImage.naturalWidth) return;
+    var pulse = 1 + Math.sin(performance.now() / 650) * .06;
+    var size = 32 * dpr * pulse;
     for (var i = 0; i < shapes.length; i++) {
-      var s = shapes[i];
-      if (!isStrong(s.id)) continue;
-      var p = toCanvas(s.c[0], s.c[1]);
-      var x = p[0] * dpr, y = p[1] * dpr;
-      if (x < -40 || y < -40 || x > MAP_W * dpr + 40 || y > MAP_H * dpr + 40) continue;
-      ctx.globalAlpha = (hits && !hits[s.id]) ? 0.3 : 1;
-      // середина колоска — в центре контура
-      ctx.save();
-      ctx.fillStyle = 'rgba(13,19,27,.82)';
-      ctx.beginPath(); ctx.ellipse(x, y, 13 * dpr, 24 * dpr, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.setTransform(sc, 0, 0, sc, x - 12 * sc, y - 30 * sc);
-      var gold = ctx.createLinearGradient(0, 0, 24, 60);
-      gold.addColorStop(0, '#fff5cf'); gold.addColorStop(.5 + Math.sin(performance.now()/800)*.2, '#ffd55c'); gold.addColorStop(1, '#d89121');
-      ctx.fillStyle = gold; ctx.shadowColor = '#ffd269'; ctx.shadowBlur = 8 * dpr;
-      ctx.fill(ryePath); ctx.restore();
+      var shape = shapes[i]; if (!isStrong(shape.id)) continue;
+      var point = toCanvas(shape.c[0], shape.c[1]);
+      ctx.globalAlpha = hits && !hits[shape.id] ? .3 : 1;
+      ctx.drawImage(strongWheatImage, point[0] * dpr - size / 2, point[1] * dpr - size / 2, size, size);
     }
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
+  }
+
+  // Coordinates of the eight transport marks in Figma 703:722. They follow the map on pan/zoom.
+  var transportPixels = [[117,653],[118,702],[151,657],[172,662],[211,838],[293,764],[363,343],[391,338]];
+  var transportImage = new Image();
+  transportImage.onload = function () { need = true; };
+  transportImage.src = U.asset('assets/concept/svg/transport-point.svg');
+  function drawTransportPoints() {
+    if (!transportImage.complete || !transportImage.naturalWidth || !geo) return;
+    var reference = VIEW.presence;
+    transportPixels.forEach(function (pixel) {
+      var wx = geo.box[0] / 2 + (pixel[0] - 16 - reference.x) / reference.k;
+      var wy = geo.box[1] / 2 + (pixel[1] - 16 - reference.y) / reference.k;
+      var point = toCanvas(wx, wy);
+      ctx.drawImage(transportImage, (point[0] - 17) * dpr, (point[1] - 17) * dpr, 34 * dpr, 34 * dpr);
+    });
   }
 
   /** Точка филиала — ядро и три кольца свечения, как в макете (DOT_RINGS).
@@ -1700,9 +1708,9 @@
 
       var q = U.query('monitoring');
       if (q.idle === '0') idleOff = true;
-      var palette = q.palette || (CFG.monitoring && CFG.monitoring.palette) || 'slate';
-      var palettes = { slate: [[66,89,101],[43,49,56]], navy: [[41,73,111],[37,43,60]], earth: [[105,91,69],[52,47,43]] };
-      if (!palettes[palette]) palette = 'slate';
+      var palette = q.palette || (CFG.monitoring && CFG.monitoring.palette) || 'figma';
+      var palettes = { figma: [[20,68,52],[42,53,51]], slate: [[66,89,101],[43,49,56]], navy: [[41,73,111],[37,43,60]], earth: [[105,91,69],[52,47,43]] };
+      if (!palettes[palette]) palette = 'figma';
       ROOT.setAttribute('data-palette', palette);
       C_DATA = palettes[palette][0]; C_NONE = palettes[palette][1];
       year = mon.years.indexOf(parseInt(q.year, 10)) >= 0
