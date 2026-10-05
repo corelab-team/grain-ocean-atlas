@@ -106,7 +106,18 @@ async function fileResponse(request, root) {
 }
 
 async function validateAssets(root) {
-  const sizes = await Promise.all(REQUIRED_ASSETS.map(async (file) => {
+  let files = REQUIRED_ASSETS;
+  try {
+    const manifest = JSON.parse(await fsp.readFile(path.join(root, 'assets-manifest.json'), 'utf8'));
+    if (!Array.isArray(manifest)) throw new Error('Invalid resource manifest');
+    for (const file of manifest) {
+      if (typeof file !== 'string' || !file.startsWith('assets/') || file.includes('..') || /[\\:\0]/.test(file)) {
+        throw new Error('Invalid resource manifest path');
+      }
+    }
+    files = [...new Set([...files, ...manifest])];
+  } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  const sizes = await Promise.all(files.map(async (file) => {
     const stat = await fsp.stat(path.join(root, file));
     if (!stat.isFile() || !stat.size) throw new Error(`Missing or empty resource: ${file}`);
     return stat.size;

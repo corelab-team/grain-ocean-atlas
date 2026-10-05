@@ -20,7 +20,7 @@ const fs = require('node:fs/promises');
       BrowserWindow.getAllWindows()[0].webContents.session.enableNetworkEmulation({ offline: true });
     });
     await page.reload();
-    await page.waitForFunction(() => document.querySelector('#sec-story video')?.currentTime > 0.1);
+    await page.waitForFunction(() => { const art = document.querySelector('#sec-story .sc-intro-art'); return art ? art.querySelectorAll('img').length >= 16 && Array.from(art.querySelectorAll('img')).every(img => img.naturalWidth > 0) : document.querySelector('#sec-story video')?.currentTime > 0.1; });
     assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
     const networkBlocked = await application.evaluate(async ({ BrowserWindow }) => {
       try { await BrowserWindow.getAllWindows()[0].webContents.session.fetch('https://example.com/'); return false; }
@@ -66,6 +66,6 @@ const fs = require('node:fs/promises');
       await page.waitForTimeout(400);
       await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'electron-offline-globe.png') });
     }
-    console.log('PASS Electron offline: intro/scan videos, byte-range seeking, weeds, region search, globe, denied internet and isolated renderer');
+    console.log('PASS Electron offline: intro artwork/scan video, byte-range seeking, weeds, region search, globe, denied internet and isolated renderer');
   } finally { await application.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

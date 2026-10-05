@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
-const { resolveAsset, isAllowedRequest, parseRange, fileResponse } = require('./files.cjs');
+const { resolveAsset, isAllowedRequest, parseRange, fileResponse, validateAssets, REQUIRED_ASSETS } = require('./files.cjs');
 
 test('Only bundled application requests are allowed', () => {
   for (const value of ['atlas://app/index.html', 'atlas://app/assets/video/intro-loop.mp4', 'data:image/png;base64,AA', 'blob:atlas://app/id']) assert(isAllowedRequest(value), value);
@@ -37,4 +37,27 @@ test('Local protocol streams bytes and handles HEAD, missing files and methods',
     assert.equal((await fileResponse(req('sample.mp4', { method: 'POST' }), root)).status, 405);
     assert.equal((await fileResponse(req('..%2Fsecret'), root)).status, 403);
   } finally { await fs.rm(root, { recursive: true, force: true }); }
+});
+
+
+test('Offline asset manifest detects missing heavy Figma images', async () => {
+  const temporaryRoot = path.resolve(os.tmpdir());
+  const root = await fs.mkdtemp(path.join(temporaryRoot, 'grain-manifest-test-'));
+  try {
+    for (const file of REQUIRED_ASSETS) {
+      await fs.mkdir(path.dirname(path.join(root, file)), { recursive: true });
+      await fs.writeFile(path.join(root, file), file === 'index.html' ? '<div id="sec-story"></div><div id="sec-globe"></div><div id="sec-monitoring"></div>' : 'fixture');
+    }
+    await fs.writeFile(path.join(root, 'assets-manifest.json'), JSON.stringify(['assets/photos/design.webp']));
+    await assert.rejects(validateAssets(root), { code: 'ENOENT' });
+    await fs.mkdir(path.join(root, 'assets/photos'), { recursive: true });
+    await fs.writeFile(path.join(root, 'assets/photos/design.webp'), 'image fixture');
+    assert(await validateAssets(root) > 0);
+    await fs.writeFile(path.join(root, 'assets-manifest.json'), JSON.stringify(['assets/../secret']));
+    await assert.rejects(validateAssets(root), /Invalid resource manifest path/);
+  } finally {
+    const relative = path.relative(temporaryRoot, path.resolve(root));
+    assert(!path.isAbsolute(relative) && !relative.includes(path.sep) && relative.startsWith('grain-manifest-test-'));
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });
