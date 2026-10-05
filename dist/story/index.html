@@ -4556,10 +4556,8 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story .sc-feed-metrics .sc-panel:nth-child(n+3) { min-height: 208px; }
 
 /* Заставка: отдельные исходные слои Figma; заголовок остаётся текстом. */
-#sec-story .sc-intro-art { position: absolute; inset: 0; animation: sc-intro-float 8s ease-in-out infinite; }
+#sec-story .sc-intro-art { position: absolute; inset: 0; }
 #sec-story .sc-intro-art img { position: absolute; object-fit: fill; }
-@keyframes sc-intro-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@media (prefers-reduced-motion: reduce) { #sec-story .sc-intro-art { animation: none; } }
 
 #sec-story .sc-weed-hit { position: absolute; z-index: 2; border: 0; background: transparent; padding: 0; cursor: pointer; }
 
@@ -9855,7 +9853,26 @@ video.sc-cover-bg {
     var cover = el('div', 'sc-cover');
     if (scr.artwork) {
       var art = el('div', 'sc-intro-art');
-      scr.artwork.forEach(function (piece) { var image = new Image(); image.src = U.asset(piece.img); image.alt = ''; place(image, piece.at); art.appendChild(image); });
+      scr.artwork.forEach(function (piece) {
+        var image = new Image();
+        image.src = U.asset(piece.img);
+        image.alt = '';
+        place(image, piece.at);
+        art.appendChild(image);
+        // Keep the background and grain still; cards orbit while staying upright.
+        if (piece.nodeId === '703:1006' || piece.nodeId === '703:1011') return;
+        var cx = 920, cy = 460, ratio = 330 / 600;
+        var x = piece.at[0] + piece.at[2] / 2 - cx;
+        var y = piece.at[1] + piece.at[3] / 2 - cy;
+        var frames = [];
+        for (var i = 0; i <= 96; i++) {
+          var angle = Math.PI * 2 * i / 96;
+          var dx = x * Math.cos(angle) - y / ratio * Math.sin(angle) - x;
+          var dy = x * ratio * Math.sin(angle) + y * Math.cos(angle) - y;
+          frames.push({ transform: 'translate(' + dx.toFixed(3) + 'px,' + dy.toFixed(3) + 'px)' });
+        }
+        image.animate(frames, { duration: 48000, iterations: Infinity, easing: 'linear' });
+      });
       cover.appendChild(art);
     } else if (scr.video) {
       var vv = document.createElement('video');
