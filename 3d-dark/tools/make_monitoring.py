@@ -6,16 +6,16 @@
 Собирает data/monitoring.json из таблиц заказчика, которые лежат рядом,
 в data/monitoring-src/:
 
-  1. Общий свод. Мягкая пшеница.xlsx   лист «Пшеница мягкая 31 авг»
-  2. Общий свод. Твердая пшеница.xlsx  лист «Пшеница твердая 31 авг»
-  Регионы с _сильной_ пшеницей.xlsx    белок > 13,5 % и клейковина > 28 %
+  +1. Мягкая пшеница.xlsx   лист «Пшеница мягкая 28 сен»
+  +2.Твердая пшеница.xlsx  лист «Пшеница твердая 28 сен»
+  Регионы с сильной пшеницей.xlsx    белок > 13,5 % и клейковина > 28 %
   Спец. характеристики пшеницы.xlsx    белок, клейковина, натура, ЧП,
                                        стекловидность (мягкая и твёрдая)
 
 ЧИСЛА НАСТОЯЩИЕ. Ничего не достраиваем и не сглаживаем: если в таблице
 клетка пустая, в json уходит null, а на экране пишется «нет данных».
 
-Год в таблицах один — 2026 (свод на 31 августа). Лента годов на экране
+Год в таблицах один — 2026 (свод на 28 сентября). Лента годов на экране
 рисуется целиком, с 2015 по 2026, но нажимаются только годы из поля
 `years`. Когда заказчик пришлёт прошлые годы, достаточно положить такие
 же таблицы и дописать их сюда — разметка и код не меняются.
@@ -37,13 +37,13 @@ OUT = os.path.join(ROOT, "data", "monitoring.json")
 
 YEAR = 2026                       # год, за который пришли таблицы
 RIBBON = list(range(2015, 2027))  # лента годов на экране
-UPDATED = "31.08.2026"            # «по состоянию на» из шапки таблиц
+UPDATED = "28.09.2026"            # «по состоянию на» из шапки таблиц
 
-SOFT_FILE = "1. Общий свод. Мягкая пшеница.xlsx"
-SOFT_SHEET = "Пшеница мягкая 31 авг"
-DURUM_FILE = "2. Общий свод. Твердая пшеница.xlsx"
-DURUM_SHEET = "Пшеница твердая 31 авг"
-STRONG_FILE = "Регионы с _сильной_ пшеницей.xlsx"
+SOFT_FILE = "+1. Мягкая пшеница.xlsx"
+SOFT_SHEET = "Пшеница мягкая 28 сен"
+DURUM_FILE = "+2.Твердая пшеница.xlsx"
+DURUM_SHEET = "Пшеница твердая 28 сен"
+STRONG_FILE = "Регионы с сильной пшеницей.xlsx"
 SPEC_FILE = "Спец. характеристики пшеницы.xlsx"
 
 # Колонки сводов (одинаковые в обоих файлах), считая с нуля:
@@ -57,6 +57,8 @@ COL_BAD = 14                      # не соответствует ГОСТ, т
 # Названия, которые сами по себе не сходятся с геоданными.
 ALIAS = {
     "еао": "RU-YEV",
+    "красноярск красноярский": "RU-KYA",
+    "москва московская": "RU-MOW",
     "кемеровская кузбасс": "RU-KEM",
 }
 
@@ -203,28 +205,20 @@ def block(row, spec, strong):
     if strong:
         b["strong"] = True
         b["strongMass"] = strong["mass"]
+        b["strongProtein"] = strong["protein"]
+        b["strongGluten"] = strong["gluten"]
     return b
 
 
-def summarize(regions, kind):
-    """Итог по стране: суммы по субъектам, доли — от общего обследованного."""
-    gross = surveyed = bad = 0.0
-    cls = [0.0] * 5
-    have = 0
-    for r in regions:
-        b = (r["years"].get(str(YEAR)) or {}).get(kind)
-        if not b:
-            continue
-        have += 1
-        gross += b["gross"] or 0
-        surveyed += b["surveyed"] or 0
-        bad += b["bad"] or 0
-        for i, t in enumerate(b["classT"]):
-            cls[i] += t or 0
+def summarize(regions, kind, rows):
+    """Итог по стране из исходных масс: округляем один раз после суммирования."""
+    gross = sum(row["gross"] or 0 for row in rows.values())
+    surveyed = sum(row["surveyed"] or 0 for row in rows.values())
+    bad = sum(row["bad"] or 0 for row in rows.values())
+    cls = [sum(row["classes"][i] or 0 for row in rows.values()) for i in range(5)]
     if not surveyed:
         return None
-    top = max(regions, key=lambda r: ((r["years"].get(str(YEAR)) or {})
-                                      .get(kind) or {}).get("surveyed") or 0)
+    top = max(regions, key=lambda r: (rows.get(r["id"]) or {}).get("surveyed") or 0)
     return {
         "gross": r1(gross),
         "surveyed": r1(surveyed),
@@ -233,7 +227,7 @@ def summarize(regions, kind):
         "classT": [r1(c) for c in cls],
         "bad": r1(bad),
         "compliance": round(100.0 - bad / surveyed * 100.0, 1),
-        "regions": have,
+        "regions": sum(bool(row["surveyed"]) for row in rows.values()),
         "leader": top["name"],
         "updated": UPDATED,
     }
@@ -276,14 +270,14 @@ def main():
 
     russia = {str(YEAR): {}}
     for kind in ("soft", "durum"):
-        s = summarize(regions, kind)
+        s = summarize(regions, kind, soft if kind == "soft" else durum)
         if s:
             russia[str(YEAR)][kind] = s
 
     doc = {
         "demo": False,
         "note": u"Данные заказчика: свод госмониторинга качества зерна "
-                u"урожая 2026 года по состоянию на 31 августа. Исходные "
+                u"урожая 2026 года по состоянию на 28 сентября. Исходные "
                 u"таблицы — data/monitoring-src/.",
         "unit": u"тыс. т",
         "years": [YEAR],
