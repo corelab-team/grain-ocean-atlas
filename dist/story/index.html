@@ -2181,11 +2181,21 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 }
 #sec-globe .year-pill.is-off { opacity: .35; pointer-events: none; }
 
-/* Круглой кнопки сброса вида в кадрах фигмы нет, и на стенде она
-   не нужна: шар сам возвращается в исходное положение по бездействию
-   (аттрактор, src/globe.js) и при уходе со страны. Прячем на всех
-   кадрах раздела. */
-#sec-globe #reset-view { display: none !important; }
+/* Reset button from Figma 703:2518, beside the main-menu button. */
+#sec-globe #reset-view {
+  left: 1327px;
+  right: auto;
+  top: 64px;
+  bottom: auto;
+  width: 214px;
+  height: 108px;
+  border-radius: 32px;
+  gap: 24px;
+  z-index: 6;
+}
+#sec-globe.is-map #reset-view { display: flex; }
+#sec-globe #reset-view img { flex: 0 0 36px; }
+#sec-globe #reset-view:focus-visible { outline: 2px solid #ddc195; outline-offset: 4px; }
 
 /* ======================== кадр «Страна» ========================
    Две панели справа: карточка страны (530 px, сверху) и таблица
