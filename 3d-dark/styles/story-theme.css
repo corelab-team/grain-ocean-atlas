@@ -2028,7 +2028,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story .sc-tech-figure { position: absolute; left: 100px; top: 330px; width: 660px; text-align: center; color: var(--sc-gold); }
 #sec-story .sc-tech-figure svg { width: 500px; height: 500px; fill: rgba(221,193,149,.12); stroke: currentColor; stroke-width: 4; stroke-linejoin: round; }
 #sec-story .sc-tech-caption { font-size: 32px; line-height: 42px; }
-#sec-story .is-self-search .sc-col, #sec-story .is-self-search .sc-nav-back, #sec-story .is-self-search .sc-nav-next, #sec-story .is-self-search .sc-head { display: none; }
+
 #sec-story .is-self-search .sc-count { top: 915px !important; background: rgba(10,25,20,.7); padding: 8px 16px; border-radius: 12px; }
 #sec-story .is-drone-search .sc-weed:not(.is-found) { opacity: 0; pointer-events: none; }
 #sec-story .is-drone-search .sc-scene { --flight-duration: 5.1s; }
@@ -2042,7 +2042,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story [data-screen="quality-2"] .sc-def-v { font-size: 22px; line-height: 30px; }
 
 #sec-story [data-screen="quality-2"] .sc-def-v { white-space: pre-line; }
-#sec-story [data-screen="quality-2"] .sc-scene video { clip-path: inset(0 330px 0 330px round 32px); }
+#sec-story [data-screen="quality-2"] .sc-scene video { clip-path: none; }
 /* Видимые полосы прокрутки обозначают продолжение текста на стенде. */
 #sec-story .sc-col.is-right, #sec-story .sc-leads2, #sec-story .sc-panel.is-technical { scrollbar-width: auto; scrollbar-color: #ddc195 rgba(255,255,255,.08); }
 #sec-story .sc-col.is-right::-webkit-scrollbar, #sec-story .sc-leads2::-webkit-scrollbar, #sec-story .sc-panel.is-technical::-webkit-scrollbar { width: 12px; display: block; }
@@ -2054,3 +2054,37 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story .sc-scroll-hint { font-size: 19px; line-height: 26px; color: var(--sc-gold); padding: 8px 16px; flex-shrink: 0; }
 #sec-story [data-screen="route-food"] .sc-col.is-right > *, #sec-story [data-screen="route-feed"] .sc-col.is-right > * { flex-shrink: 0; }
 #sec-story [data-screen="route-food"] .sc-col.is-right, #sec-story [data-screen="route-feed"] .sc-col.is-right { padding-right: 14px; }
+
+/* Макеты 02.10: карточки маршрутов и полный отчёт, без замены интерактивов. */
+#sec-story .sc-panel-stack { display: flex; flex-direction: column; gap: 8px; }
+#sec-story .sc-panel-stack.is-animal { gap: 4px; }
+#sec-story .sc-feed-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px; }
+#sec-story .sc-panel.is-feed-metric { padding: 24px; min-height: 184px; }
+#sec-story .sc-panel.is-feed-metric .sc-panel-t { font-size: 20px; line-height: 28px; }
+#sec-story .sc-panel.is-feed-metric .sc-panel-p { font-size: 14px; line-height: 20px; margin-top: 16px; }
+#sec-story #view[data-screen="quality-2"] .sc-panel.is-report { height: 555px; }
+#sec-story #view[data-screen="quality-2"] .sc-panel.is-report .sc-panel-p { font-size: 24px; line-height: 32px; }
+#sec-story #view[data-screen="route-food"] .sc-col.is-right { max-height: 705px; overflow-y: auto; overscroll-behavior: contain; }
+#sec-story #view[data-screen="route-fuel"] .sc-tabs { width: 978px; }
+#sec-story #view[data-screen="route-fuel"] .sc-marker.is-focus { height: 64px; border-radius: 32px; }
+
+#sec-story #view[data-screen="route-feed"] .sc-col.is-right { max-height: 681px; }
+#sec-story #view[data-screen="route-feed"] .sc-panel.is-slim { padding: 16px 24px; height: 71px; }
+#sec-story #view[data-screen="route-feed"] .sc-panel.is-slim .sc-panel-t { font-size: 32px; line-height: 39px; }
+#sec-story #view[data-screen="route-feed"] .sc-panel.is-feed-metric { box-sizing: border-box; }
+
+#sec-story .sc-panel.is-feed-about .sc-panel-p { font-size: 20px; line-height: 28px; margin-top: 14px; }
+#sec-story .sc-panel.is-feed-metric .sc-panel-p { font-size: 20px; line-height: 24px; margin-top: 12px; }
+#sec-story .sc-panel.is-feed-metric .sc-panel-t { line-height: 24px; }
+#sec-story .sc-feed-metrics .sc-panel:nth-child(n+3) { min-height: 208px; }
+
+/* Заставка: отдельные исходные слои Figma; заголовок остаётся текстом. */
+#sec-story .sc-intro-art { position: absolute; inset: 0; animation: sc-intro-float 8s ease-in-out infinite; }
+#sec-story .sc-intro-art img { position: absolute; object-fit: fill; }
+@keyframes sc-intro-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { #sec-story .sc-intro-art { animation: none; } }
+
+#sec-story .sc-weed-hit { position: absolute; z-index: 2; border: 0; background: transparent; padding: 0; cursor: pointer; }
+
+#sec-story #view[data-screen="route-feed"] .sc-feed-metrics .sc-panel.is-feed-metric .sc-panel-t { font-size: 20px; line-height: 24px; }
+#sec-story #view[data-screen="route-feed"] .sc-feed-metrics .sc-panel.is-feed-metric .sc-panel-p { font-size: 20px; line-height: 24px; margin-top: 12px; }

@@ -151,6 +151,19 @@ if side.is_dir():
             out_file.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, out_file)
 
+# Asset manifests include every heavy image used by each page, including new Figma artwork.
+for source_page, destination in ((app_src, APP_OUT), (proto_src, OUT / "proto"), (green_src, GREEN_OUT),
+                                 (story_src, STORY_OUT), (path_src, PATH_OUT), (mon_src, MON_OUT)):
+    import json
+    manifest = pathlib.Path(str(source_page) + ".assets.json")
+    files = json.loads(manifest.read_text(encoding="utf-8"))
+    for relative in files:
+        source_asset = source_page.parent / relative
+        target_asset = destination / relative
+        target_asset.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source_asset, target_asset)
+    (destination / "assets-manifest.json").write_text(json.dumps(files, ensure_ascii=False), encoding="utf-8")
+
 print("ok:", APP_OUT / "index.html", len(app) // 1024, "KB;",
       OUT / "index.html", len(wrapped) // 1024, "KB;",
       OUT / "proto/index.html", len(proto) // 1024, "KB;",

@@ -286,6 +286,9 @@ def main(theme=None, out_path=None, entry=None, max_mb=None):
         shutil.copyfile(src, dst)
         print("Рядом со страницей: %s (%.1f МБ)" % (rel, size / 1048576.0))
 
+    with open(out + '.assets.json', 'w', encoding='utf-8') as manifest:
+        json.dump([rel for rel, _, _ in sidecars], manifest, ensure_ascii=False)
+
     size_mb = os.path.getsize(out) / 1048576.0
     print("Собрано: %s (%.1f МБ)" % (os.path.relpath(out, ROOT), size_mb))
     if size_mb > max_mb:

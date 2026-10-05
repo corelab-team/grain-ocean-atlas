@@ -125,7 +125,8 @@
     /* станция 4: сцена меняется вслед за шагом (st.sel) — см.
        sceneBySel: 'flow' у store-silo и store-1. sceneFor() ждёт
        объект { pic: ... }, как у food/feed выше. */
-    flow: function () { return { pic: flowStep().scene }; }
+    flow: function () { return { pic: flowStep().scene }; },
+    technical: function () { var t = find(C.technical, tabKey()); return { pic: C.pic(t.name, t.img, 'фото', '', t.at) }; }
   };
 
   function sceneFor(scr) {
@@ -171,7 +172,7 @@
      кадра макета как есть, и участки лежат над затемнением — с ним
      фон по краям темнел бы, а участок нет. */
   var NO_VIGNETTE = { intro: 1, start: 1, hub: 1, 'soil-1': 1, 'soil-2': 1,
-    'soil-3': 1, 'soil-4': 1, 'store-silo': 1, 'store-1': 1 };
+    'soil-3': 1, 'soil-4': 1, 'store-silo': 1, 'store-1': 1, 'route-fuel': 1, product: 1, final: 1 };
 
   /**
    * Ролик на сцене (кадр 04): статичный кадр p.img — постер, пока ролик
@@ -343,6 +344,7 @@
     if (p.title) n.appendChild(el('h3', 'sc-panel-t' + (p.small ? ' is-small' : ''), p.title));
     if (p.sub) n.appendChild(el('div', 'sc-panel-sub', p.sub));
     if (p.text) n.appendChild(el('p', 'sc-panel-p', p.text));
+    if (p.paragraphs) p.paragraphs.forEach(function (text) { n.appendChild(el('p', 'sc-panel-p', text)); });
     if (p.big) n.appendChild(el('div', 'sc-big', p.big));
     if (p.picture) n.appendChild(shotEl({ img: p.picture, h: p.pictureHeight || 280, cap: p.title }));
     if (p.items) {
@@ -822,6 +824,7 @@
     var im = new Image();
     im.src = U.asset(c.img);
     im.alt = c.cap || '';
+    if (c.baseAt) { im.className = 'is-at'; place(im, c.baseAt); }
     base.appendChild(im);
     box.appendChild(base);
 
@@ -905,6 +908,10 @@
       });
       st.weedEls.push(b);
       root.appendChild(b);
+      if (m.hit) {
+        var hit = el('button', 'sc-weed-hit'); hit.type = 'button'; hit.tabIndex = -1; hit.setAttribute('aria-hidden', 'true'); place(hit, m.hit);
+        hit.addEventListener('click', function () { b.click(); }); root.appendChild(hit);
+      }
     });
     if (st.countEl) countWeeds(marks.length, total);
   }
@@ -942,7 +949,6 @@
   /** Плавающие блоки по координатам кадра: панель, кнопки, сетка. */
   function boxesEl(scr, root) {
     scr.boxes.forEach(function (b) {
-      if (scr.id === 'seed-3' && tabKey() === 'iso' && !b.items.some(function (it) { return it.dyn === 'weedBtnDrone'; })) return;
       var n = el('div', 'sc-box' + (b.row ? ' is-row' : ''));
       n.style.left = b.at[0] + 'px';
       n.style.top = b.at[1] + 'px';
@@ -1164,15 +1170,14 @@
   }
 
   function technicalOverlay(root) {
-    var drawings = {
-      biofuel: '<ellipse cx="180" cy="95" rx="95" ry="28"/><path d="M85 95v215c0 38 190 38 190 0V95M85 170c0 38 190 38 190 0M85 240c0 38 190 38 190 0"/><path d="M325 115c-90 90-90 160 0 160s90-70 0-160Z"/>',
-      polymer: '<path d="M85 125h240l-20 220H105Z"/><path d="M130 125V95c0-70 150-70 150 0v30"/><path d="M155 215q100-100 125-15q-15 80-100 65M155 285l105-75"/>',
-      textile: '<path d="M60 75h300v285H60Z"/><path d="M95 75v285M135 75v285M175 75v285M215 75v285M255 75v285M295 75v285M60 110h300M60 150h300M60 190h300M60 230h300M60 270h300M60 310h300"/>'
-    };
-    var figure = el('div', 'sc-tech-figure');
-    figure.innerHTML = '<svg viewBox="0 0 420 420" aria-hidden="true">' + drawings[tabKey()] + '</svg>';
-    figure.appendChild(el('div', 'sc-tech-caption', find(C.technical, tabKey()).name));
-    root.appendChild(figure);
+    var current = find(C.technical, tabKey());
+    (current.markers || []).forEach(function (marker) {
+      var b = el('button', 'sc-marker is-focus', marker.label);
+      b.type = 'button'; b.style.left = marker.x + 'px'; b.style.top = marker.y + 'px';
+      if (marker.w) b.style.width = marker.w + 'px';
+      b.addEventListener('click', function () { resetIdle(); st.details = !st.details; rerender(); });
+      root.appendChild(b);
+    });
   }
   var OVERLAYS = { store: storeOverlay, feed: feedOverlay, technical: technicalOverlay };
 
@@ -1267,14 +1272,14 @@
        Пока у экрана стоит tabsWip, обе кнопки серые, с подписью
        «в разработке», и касания не ловят. */
     weedBtnSelf: function () {
-      var on = tabKey() === 'iso';
+      var on = tabKey() !== 'drone';
       // правка заказчика 30.09 (кадр 08b): нажатая подпись — «Смотрим»
       return weedBtn(on ? 'Смотрим' : 'Посмотреть самостоятельно',
         'weedSelf', on);
     },
     weedBtnDrone: function () {
       var on = tabKey() === 'drone';
-      return weedBtn(on ? (st.scanning ? 'Обследование поля…' : 'Обзор завершён') : 'Запустить обзор с БПЛА',
+      return weedBtn(on ? 'Дрон запущен' : 'Запустить обзор с БПЛА',
         'weedDrone', on);
     },
 
@@ -1341,6 +1346,32 @@
 
     /* --- экран 16: продовольственный маршрут --- */
 
+    foodPanels: function () {
+      var stack = el('div', 'sc-panel-stack');
+      (foodTab().panels || []).forEach(function (p) { stack.appendChild(panelEl(p)); });
+      return stack;
+    },
+    technicalNext: function () {
+      var i = C.technical.indexOf(find(C.technical, tabKey()));
+      var labels = ['Текстильные волокна →', 'Биоразлагаемые элементы →', 'Контроль экспорта →'];
+      return button({ label: labels[i], action: 'technicalNext' }, 'sc-btn');
+    },
+    feedMetrics: function () {
+      var grid = el('div', 'sc-feed-metrics');
+      var entries = [
+        ['Токсикологический анализ', 'Микотоксины, нитраты, нитриты и общая токсичность'],
+        ['Химико-токсикологический анализ', 'Тяжёлые металлы, остатки пестицидов и антибиотиков'],
+        ['Радиологический контроль', 'Измерение уровня радиоактивных элементов'],
+        ['Физико-химический анализ', 'Уровень влаги, сырого протеина, сырого жира, сырой клетчатки и золы']
+      ];
+      entries.forEach(function (entry) { grid.appendChild(panelEl({title:entry[0],text:entry[1],cls:'is-feed-metric'})); });
+      return grid;
+    },
+    animalChecks: function () {
+      var key = st.sel || 'milk'; var stack = el('div', 'sc-panel-stack is-animal');
+      C.animalChecks[key].split('\n\n').forEach(function (text) { stack.appendChild(panelEl({text:text})); });
+      return stack;
+    },
     foodAbout: function () {
       var f = foodTab();
       return panelEl({ title: f.title, text: f.text });
@@ -1353,7 +1384,7 @@
     },
     technicalAbout: function () {
       var t = find(C.technical, tabKey());
-      return panelEl({ cap: 'Прокрутите, чтобы прочитать полностью ↓', title: t.name, text: t.text, cls: 'is-technical' });
+      return panelEl(st.details ? { title: t.name, text: t.text, cls: 'is-technical' } : t.summary);
     },
     foodCheck: function () {
       var f = foodTab();
@@ -1371,7 +1402,7 @@
 
     feedAbout: function () {
       var s = feedState();
-      return panelEl({ title: s.title, text: s.text });
+      return panelEl({ title: s.title, text: s.text, h: 201, cls: 'is-feed-about' });
     },
     /* Проверки кормов, молока и мяса: тексты из замечаний 30.09. */
     feedCheck: function () {
@@ -1452,7 +1483,6 @@
   function colEl(spec, side, top) {
     var box = el('div', 'sc-col is-' + side + ' is-' + (spec.at || 'top') +
       (spec.hasNav ? ' has-nav' : ''));
-    if (side === 'right' && (cur.id === 'route-food' || cur.id === 'route-feed')) box.appendChild(el('div', 'sc-scroll-hint', 'Прокрутите, чтобы прочитать полностью ↓'));
     if (spec.width) box.style.width = spec.width + 'px';
     /* edge — свой отступ колонки от края экрана: в паре кадров Figma
        панель стоит не на общих 64 px */
@@ -1682,8 +1712,8 @@
     }
     if (scr.picks3) root.appendChild(picks3El(scr.picks3));
     if (scr.left) root.appendChild(colEl(scr.left, 'left'));
-    if (scr.right) root.appendChild(colEl(scr.right, 'right',
-      scr.rightByTab && scr.rightByTab[tabKey()]));
+    var right = scr.rightPanelsByTab ? scr.rightPanelsByTab[tabKey()] : scr.right;
+    if (right) root.appendChild(colEl(right, 'right', scr.rightByTab && scr.rightByTab[tabKey()]));
     if (scr.boxes) boxesEl(scr, root);
     if (scr.tiles) root.appendChild(tilesEl(scr));
     if (scr.nav) navSceneEl(scr, root);
@@ -1699,7 +1729,11 @@
       прежние картинки останутся на месте. */
   function renderIntro(scr, root) {
     var cover = el('div', 'sc-cover');
-    if (scr.video) {
+    if (scr.artwork) {
+      var art = el('div', 'sc-intro-art');
+      scr.artwork.forEach(function (piece) { var image = new Image(); image.src = U.asset(piece.img); image.alt = ''; place(image, piece.at); art.appendChild(image); });
+      cover.appendChild(art);
+    } else if (scr.video) {
       var vv = document.createElement('video');
       vv.className = 'sc-cover-bg';
       vv.autoplay = true;
@@ -1813,6 +1847,7 @@
     },
 
     /* --- экраны 16 и 17: следующая вкладка маршрута --- */
+    technicalNext: function () { var i = C.technical.indexOf(find(C.technical, tabKey())); if (i + 1 < C.technical.length) { st.tab = C.technical[i + 1].key; st.details = false; rerender(); } else go('export-1'); },
     foodNext: function () { st.tab = foodTab().next.tab; st.level = null; rerender(); },
     feedNext: function () { st.tab = feedState().next.tab; st.sel = null; rerender(); },
 
