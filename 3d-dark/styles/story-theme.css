@@ -2079,10 +2079,8 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story .sc-feed-metrics .sc-panel:nth-child(n+3) { min-height: 208px; }
 
 /* Заставка: отдельные исходные слои Figma; заголовок остаётся текстом. */
-#sec-story .sc-intro-art { position: absolute; inset: 0; animation: sc-intro-float 8s ease-in-out infinite; }
+#sec-story .sc-intro-art { position: absolute; inset: 0; }
 #sec-story .sc-intro-art img { position: absolute; object-fit: fill; }
-@keyframes sc-intro-float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@media (prefers-reduced-motion: reduce) { #sec-story .sc-intro-art { animation: none; } }
 
 #sec-story .sc-weed-hit { position: absolute; z-index: 2; border: 0; background: transparent; padding: 0; cursor: pointer; }
 

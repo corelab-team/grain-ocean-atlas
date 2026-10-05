@@ -1731,7 +1731,26 @@
     var cover = el('div', 'sc-cover');
     if (scr.artwork) {
       var art = el('div', 'sc-intro-art');
-      scr.artwork.forEach(function (piece) { var image = new Image(); image.src = U.asset(piece.img); image.alt = ''; place(image, piece.at); art.appendChild(image); });
+      scr.artwork.forEach(function (piece) {
+        var image = new Image();
+        image.src = U.asset(piece.img);
+        image.alt = '';
+        place(image, piece.at);
+        art.appendChild(image);
+        // Keep the background and grain still; cards orbit while staying upright.
+        if (piece.nodeId === '703:1006' || piece.nodeId === '703:1011') return;
+        var cx = 920, cy = 460, ratio = 330 / 600;
+        var x = piece.at[0] + piece.at[2] / 2 - cx;
+        var y = piece.at[1] + piece.at[3] / 2 - cy;
+        var frames = [];
+        for (var i = 0; i <= 96; i++) {
+          var angle = Math.PI * 2 * i / 96;
+          var dx = x * Math.cos(angle) - y / ratio * Math.sin(angle) - x;
+          var dy = x * ratio * Math.sin(angle) + y * Math.cos(angle) - y;
+          frames.push({ transform: 'translate(' + dx.toFixed(3) + 'px,' + dy.toFixed(3) + 'px)' });
+        }
+        image.animate(frames, { duration: 48000, iterations: Infinity, easing: 'linear' });
+      });
       cover.appendChild(art);
     } else if (scr.video) {
       var vv = document.createElement('video');
