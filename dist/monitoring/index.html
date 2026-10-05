@@ -4568,6 +4568,16 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 #sec-story #view[data-screen="route-feed"] .sc-feed-metrics .sc-panel.is-feed-metric .sc-panel-t { font-size: 20px; line-height: 24px; }
 #sec-story #view[data-screen="route-feed"] .sc-feed-metrics .sc-panel.is-feed-metric .sc-panel-p { font-size: 20px; line-height: 24px; margin-top: 12px; }
 
+/* During manual weed search, keep the field clear and the drone action available. */
+#sec-story #view[data-screen="seed-3"].is-self-search .sc-head,
+#sec-story #view[data-screen="seed-3"].is-self-search .sc-top,
+#sec-story #view[data-screen="seed-3"].is-self-search .sc-col,
+#sec-story #view[data-screen="seed-3"].is-self-search .sc-nav-back,
+#sec-story #view[data-screen="seed-3"].is-self-search .sc-nav-next,
+#sec-story #view[data-screen="seed-3"].is-self-search .sc-box:not(:has([data-action="weedDrone"])) {
+  display: none;
+}
+
 </style>
 <style>
 /* ===================================================================
