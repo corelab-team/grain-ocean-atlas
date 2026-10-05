@@ -1175,7 +1175,7 @@
       var b = el('button', 'sc-marker is-focus' + (st.technicalPart === marker.key ? ' is-on' : ''), marker.label);
       b.type = 'button'; b.style.left = marker.x + 'px'; b.style.top = marker.y + 'px';
       if (marker.w) b.style.width = marker.w + 'px';
-      b.addEventListener('click', function () { resetIdle(); st.technicalPart = st.technicalPart === marker.key ? null : marker.key; rerender(); });
+      b.addEventListener('click', function () { resetIdle(); st.technicalPart = marker.key; rerender(); });
       root.appendChild(b);
     });
   }
@@ -1391,9 +1391,13 @@
       var t = find(C.technical, tabKey());
       var stack = el('div', 'sc-panel-stack is-technical-panels');
       var keys = st.technicalPart ? [st.technicalPart] : t.defaultPanels;
-      t.panels.forEach(function (part) {
+      t.panels.forEach(function (part, index) {
         if (keys.indexOf(part.key) < 0) return;
-        var panel = panelEl(part);
+        var displayed = st.technicalPart ? part : {
+          title: (index + 1) + '. ' + part.title,
+          text: part.text
+        };
+        var panel = panelEl(displayed);
         panel.style.height = 'auto';
         panel.style.minHeight = part.h + 'px';
         stack.appendChild(panel);

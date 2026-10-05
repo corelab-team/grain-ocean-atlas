@@ -1220,7 +1220,8 @@
             }
         ],
         "defaultPanels": [
-            "fiber"
+            "fiber",
+            "sizing"
         ]
     },
     {
@@ -1282,7 +1283,9 @@
             }
         ],
         "defaultPanels": [
-            "starch"
+            "starch",
+            "protein",
+            "whole"
         ]
     }
 ];
