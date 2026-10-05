@@ -974,7 +974,7 @@
     if (gcfg.homeY != null) HOME.fy = gcfg.homeY;
     /* куда смотрит камера в домашнем ракурсе — широта и долгота точки
        в центре диска. По кнопке «Сброс» возвращаем тот же ракурс
-       с Россией по центру, заданный в config.json */
+       с Африкой по центру и Россией сверху, заданный в config.json */
     if (gcfg.homeLat != null && gcfg.homeLon != null) {
       var home = faceAngles(gcfg.homeLat, gcfg.homeLon);
       HOME.phi = home.phi;
