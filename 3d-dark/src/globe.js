@@ -1315,6 +1315,7 @@
   var labelHost = null;
   var labels = [];                      // подписи топ-стран
   var originLabel = null, selLabel = null;
+  var labelFontsReady = !document.fonts || document.fonts.status === 'loaded';
 
   function makeLabel(cls) {
     var el = document.createElement('div');
@@ -1339,6 +1340,7 @@
     // до подгрузки шрифтов ширина подписей меряется неверно — пересчитываем
     if (document.fonts && document.fonts.ready) {
       document.fonts.ready.then(function () {
+        labelFontsReady = true;
         var all = labels.concat([originLabel, selLabel]);
         all.forEach(function (L) { L.w = L.el.offsetWidth; L.h = L.el.offsetHeight; });
         namesMeasured = false;
@@ -1384,7 +1386,20 @@
   /** Возвращает true, если подпись показана; её рамка остаётся в L.rect. */
   function placeLabel(L, worldPos, alpha, isOrigin) {
     L.rect = null;
+    if (!labelFontsReady || (document.fonts && document.fonts.status === 'loading')) {
+      L.w = L.h = 0;
+      L.el.style.opacity = 0;
+      return false;
+    }
     if (alpha <= 0.01) { L.el.style.opacity = 0; return false; }
+    // Hidden sections initially have no measurable label dimensions.
+    if (!L.w || !L.h) { L.w = L.el.offsetWidth; L.h = L.el.offsetHeight; }
+    if (document.fonts && document.fonts.status === 'loading') {
+      L.w = L.h = 0;
+      L.el.style.opacity = 0;
+      return false;
+    }
+    if (!L.w || !L.h) { L.el.style.opacity = 0; return false; }
     project(worldPos, L);
     if (isOrigin) { originPt.x = L.x; originPt.y = L.y; }
     if (!L.front) { L.el.style.opacity = 0; return false; }
@@ -1394,21 +1409,35 @@
     var ax = centre.x, ay = centre.y, push = 18;
     if (!isOrigin) {
       var d = Math.hypot(L.x - originPt.x, L.y - originPt.y);
-      if (d > 2 && d < 170) { ax = originPt.x; ay = originPt.y; push = 52; }
+      if (d > 2 && d < 170) {
+        var near = Math.min(1, (170 - d) / 50);
+        near = near * near * (3 - 2 * near);
+        ax += (originPt.x - ax) * near;
+        ay += (originPt.y - ay) * near;
+        push += 34 * near;
+      }
     }
     var ox = L.x - ax, oy = L.y - ay;
     var len = Math.hypot(ox, oy) || 1;
     L.x += ox / len * push;
     L.y += oy / len * push;
-    // если подпись налезает на уже размещённую — сдвигаем вниз, иначе прячем
+    // Keep a collision lane until it is obstructed; moving the globe should
+    // not make nearby country labels jump back and forth or disappear.
+    var stride = L.h + 10;
+    var lanes = [L.lane == null ? 0 : L.lane];
+    for (var distance = 0; distance <= labels.length + 2; distance++) {
+      if (lanes.indexOf(distance) < 0) lanes.push(distance);
+      if (distance && lanes.indexOf(-distance) < 0) lanes.push(-distance);
+    }
     var dy = 0, ok = false;
-    for (var step = 0; step < 3 && !ok; step++) {
+    for (var step = 0; step < lanes.length && !ok; step++) {
+      dy = lanes[step] * stride;
       var rect = labelRect(L, dy);
-      ok = true;
-      for (var i = 0; i < placed.length; i++) {
-        if (overlaps(rect, placed[i])) { ok = false; break; }
+      ok = rect.t >= 0 && rect.b <= (canvas.clientHeight || 1080);
+      for (var i = 0; i < placed.length && ok; i++) {
+        if (overlaps(rect, placed[i])) ok = false;
       }
-      if (!ok) dy += L.h + 6;
+      if (ok) L.lane = lanes[step];
     }
     if (!ok) { L.el.style.opacity = 0; return false; }
     L.rect = labelRect(L, dy);
@@ -1453,6 +1482,7 @@
     var top = items.slice(0, 8);       // items уже отсортированы по убыванию
     for (var j = 0; j < top.length; j++) {
       var L = makeLabel(null);
+      L.lane = 0;
       setLabelText(L, top[j].name, U.fmtVolume(top[j].value) + ' тыс. т');
       L.pos = toVec3(top[j].lat, top[j].lon, R * 1.004);
       L.iso = top[j].iso ? String(top[j].iso) : null;
@@ -1560,7 +1590,9 @@
   }
 
   function updateNames() {
-    var a = namesAlpha();
+    var fontsLoading = document.fonts && document.fonts.status === 'loading';
+    if (fontsLoading) namesMeasured = false;
+    var a = labelFontsReady && !fontsLoading ? namesAlpha() : 0;
     if (a <= 0.01) {
       if (namesOn) {
         for (var h = 0; h < nameLabels.length; h++) {
