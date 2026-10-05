@@ -6,8 +6,6 @@ const { Readable } = require('node:stream');
 const REQUIRED_ASSETS = [
   'index.html',
   'assets/textures/earth_land_8192_figma.jpg',
-  'assets/video/intro-loop.mp4',
-  'assets/video/grain-scan.mp4',
   'assets/video/globe-2016.mp4',
   'assets/video/globe-2025.mp4'
 ];
@@ -123,9 +121,11 @@ async function validateAssets(root) {
     return stat.size;
   }));
   const html = await fsp.readFile(path.join(root, 'index.html'), 'utf8');
-  for (const section of ['sec-story', 'sec-globe', 'sec-monitoring']) {
-    if (!html.includes(`id="${section}"`)) throw new Error(`Missing application section: ${section}`);
+  if (!html.includes('id="sec-globe"')) throw new Error('Missing export globe');
+  for (const section of ['sec-story', 'sec-monitoring', 'home-btn']) {
+    if (html.includes(`id="${section}"`)) throw new Error(`Unexpected full-application element: ${section}`);
   }
+
   if (/<(?:script|link|img|video)\b[^>]*\b(?:src|href)\s*=\s*["']https?:\/\//i.test(html)) {
     throw new Error('Application includes an external resource');
   }

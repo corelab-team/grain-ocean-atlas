@@ -1,8 +1,8 @@
 {
-  "name": "grain-ocean-atlas",
-  "version": "1.0.13",
+  "name": "grain-export-atlas",
+  "version": "1.0.0",
   "private": true,
-  "description": "Автономное приложение выставочного стенда «Путь зерна»",
+  "description": "Автономные маршруты экспорта зерна для Windows",
   "license": "UNLICENSED",
   "main": "electron/main.cjs",
   "engines": {
@@ -25,8 +25,8 @@
     "playwright-core": "1.63.0"
   },
   "build": {
-    "appId": "ru.corelab.grain-ocean-atlas",
-    "productName": "Grain Ocean Atlas",
+    "appId": "ru.corelab.grain-ocean-atlas.export",
+    "productName": "Grain Export Atlas",
     "asar": true,
     "directories": {
       "output": "release"
@@ -38,7 +38,7 @@
     ],
     "extraResources": [
       {
-        "from": "dist/app",
+        "from": "dist/export-only",
         "to": "atlas",
         "filter": [
           "**/*"
@@ -60,9 +60,9 @@
           ]
         }
       ],
-      "executableName": "GrainOceanAtlas",
+      "executableName": "GrainExportAtlas",
       "signAndEditExecutable": false,
-      "artifactName": "GrainOceanAtlas-${version}-win-${arch}.${ext}"
+      "artifactName": "GrainExportAtlas-${version}-win-${arch}.${ext}"
     },
     "npmRebuild": false,
     "nsis": {
@@ -73,13 +73,13 @@
       "packElevateHelper": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Путь зерна",
+      "shortcutName": "Маршруты экспорта",
       "runAfterFinish": false,
       "installerLanguages": [
         "ru_RU"
       ],
       "language": "1049",
-      "artifactName": "GrainOceanAtlas-${version}-win-${arch}-Setup.${ext}"
+      "artifactName": "GrainExportAtlas-${version}-win-${arch}-Setup.${ext}"
     }
   }
 }

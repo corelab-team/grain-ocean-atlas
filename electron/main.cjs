@@ -13,9 +13,10 @@ protocol.registerSchemesAsPrivileged([{
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-background-networking');
 app.commandLine.appendSwitch('disable-component-update');
-app.setName('Grain Ocean Atlas');
+app.setName('Grain Export Atlas');
 // A test instance must not disturb the exhibit's saved state or running window.
-if (verify) app.setPath('userData', path.join(app.getPath('temp'), `grain-atlas-verify-${process.pid}`));
+if (!verify) app.setPath('userData', path.join(app.getPath('appData'), 'grain-export-atlas'));
+if (verify) app.setPath('userData', path.join(app.getPath('temp'), `grain-export-verify-${process.pid}`));
 
 const primary = app.requestSingleInstanceLock();
 if (!primary) app.quit();
@@ -27,7 +28,7 @@ else {
   });
   app.whenReady().then(async () => {
     const root = app.isPackaged ? path.join(process.resourcesPath, 'atlas') :
-      path.resolve(__dirname, '../dist/app');
+      path.resolve(__dirname, '../dist/export-only');
     await validateAssets(root);
     const localSession = session.fromPartition('atlas');
     localSession.protocol.handle('atlas', request => fileResponse(request, root));
@@ -40,7 +41,7 @@ else {
     Menu.setApplicationMenu(null);
     mainWindow = new BrowserWindow({
       width: 1920, height: 1080, minWidth: 960, minHeight: 540,
-      title: 'Путь зерна', backgroundColor: '#101c27',
+      title: 'Маршруты экспорта', backgroundColor: '#101c27',
       show: false, kiosk: !windowed, fullscreen: !windowed, autoHideMenuBar: true,
       webPreferences: {
         session: localSession, nodeIntegration: false, contextIsolation: true,

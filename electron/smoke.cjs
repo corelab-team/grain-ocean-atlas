@@ -1,71 +1,30 @@
-const { _electron } = require('playwright-core');
-const assert = require('node:assert/strict');
-const path = require('node:path');
-const fs = require('node:fs/promises');
-
-(async () => {
-  const packagedExe = process.argv[2];
-  const application = await _electron.launch({
-    executablePath: packagedExe || require('electron'),
-    args: packagedExe ? ['--verify'] : [path.resolve(__dirname, '..'), '--verify'], timeout: 60000
-  });
-  try {
-    const page = await application.firstWindow();
-    const errors = [];
-    page.on('pageerror', error => errors.push(error.message));
-    await page.waitForLoadState('load');
-    await page.waitForFunction(() => window.StoryApp && StoryApp.state().screen === 'intro');
-    // Chromium's network is offline before the reload; custom-protocol files remain available.
-    await application.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()[0].webContents.session.enableNetworkEmulation({ offline: true });
-    });
-    await page.reload();
-    await page.waitForFunction(() => { const art = document.querySelector('#sec-story .sc-intro-art'); return art ? art.querySelectorAll('img').length >= 16 && Array.from(art.querySelectorAll('img')).every(img => img.naturalWidth > 0) : document.querySelector('#sec-story video')?.currentTime > 0.1; });
-    assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
-    const networkBlocked = await application.evaluate(async ({ BrowserWindow }) => {
-      try { await BrowserWindow.getAllWindows()[0].webContents.session.fetch('https://example.com/'); return false; }
-      catch { return true; }
-    });
-    assert(networkBlocked, 'Internet requests must fail');
-    const range = await page.evaluate(async () => {
-      const response = await fetch('assets/video/grain-scan.mp4', { headers: { Range: 'bytes=0-15' } });
-      return { status: response.status, bytes: (await response.arrayBuffer()).byteLength };
-    });
-    assert.deepEqual(range, { status: 206, bytes: 16 });
-    await page.evaluate(() => StoryApp.go('quality-2'));
-    await page.waitForFunction(() => StoryApp.state().screen === 'quality-2');
-    await page.waitForFunction(() => document.querySelector('#sec-story video')?.currentTime > 0.1);
-    assert((await page.locator('#sec-story .is-report').innerText()).includes('257,0'));
-    await page.evaluate(() => StoryApp.go('seed-3'));
-    await page.waitForFunction(() => StoryApp.state().screen === 'seed-3');
-    await page.getByRole('button', { name: 'Запустить обзор с БПЛА', exact: true }).click();
-    await page.waitForFunction(() => document.querySelectorAll('#sec-story .sc-weed.is-found').length === 3);
-    await page.locator('#sec-story .sc-grid.is-ico .sc-pick').first().click();
-    assert.equal(await page.getByRole('dialog').count(), 1);
-    await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
-    await page.evaluate(() => Shell.go('monitoring'));
-    await page.waitForFunction(() => Shell.section() === 'monitoring' && MonScreen.stats().regions > 0);
-    await page.locator('#sec-monitoring #search').fill('Рост');
-    await page.locator('#sec-monitoring #search-results button').click();
-    await page.waitForFunction(() => MonScreen.stats().screen === 'region');
-    await page.waitForTimeout(450);
-    await page.evaluate(() => Shell.go('globe'));
-    await page.waitForFunction(() => Shell.section() === 'globe' && Globe.ready());
-    await page.locator('#sec-globe').getByRole('button', { name: '2015', exact: true }).click();
-    assert((await page.locator('#sec-globe #news-list').innerText()).includes('Требования стран-импортёров'));
-    await page.waitForFunction(() => Array.from(document.querySelectorAll('#sec-globe img')).filter(img => img.offsetParent).every(img => img.naturalWidth > 0));
-    const preferences = await application.evaluate(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows()[0];
-      const prefs = window.webContents.getLastWebPreferences();
-      return { contextIsolation: prefs.contextIsolation, sandbox: prefs.sandbox, nodeIntegration: prefs.nodeIntegration };
-    });
-    assert.deepEqual(preferences, { contextIsolation: true, sandbox: true, nodeIntegration: false });
-    assert.deepEqual(errors, []);
-    if (process.env.SCREENSHOT_DIR) {
-      await fs.mkdir(process.env.SCREENSHOT_DIR, { recursive: true });
-      await page.waitForTimeout(400);
-      await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'electron-offline-globe.png') });
-    }
-    console.log('PASS Electron offline: intro artwork/scan video, byte-range seeking, weeds, region search, globe, denied internet and isolated renderer');
-  } finally { await application.close(); }
-})().catch(error => { console.error(error); process.exitCode = 1; });
+const {_electron}=require('playwright-core');
+const assert=require('node:assert/strict');
+const path=require('node:path');
+(async()=>{const executable=process.argv[2];
+const app=await _electron.launch({executablePath:executable||require('electron'),args:executable?['--verify']:[path.resolve(__dirname,'..'),'--verify'],timeout:60000});try{const p=await app.firstWindow();
+const errors=[];
+    p.on('pageerror',e=>errors.push(e.message));
+    await p.waitForLoadState('load');
+    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.session.enableNetworkEmulation({offline:true}));
+    await p.reload();
+    await p.waitForFunction(()=>window.Globe&&Globe.ready());
+    await p.addStyleTag({content:'*{transition:none!important}#page-fade{display:none!important}'});
+    assert.equal(await p.locator('#sec-story, #sec-monitoring, #home-btn').count(),0);
+    assert.equal(await p.evaluate(()=>typeof window.Shell),'undefined');
+    assert.equal(await p.evaluate(()=>typeof window.require),'undefined');
+    await p.waitForFunction(()=>document.querySelector('#reset-view-icon')?.naturalWidth===36);
+    await p.locator('#reset-view').click();
+    await p.getByRole('button',{name:'2015',exact:true}).click();
+    assert((await p.locator('#news-list').innerText()).includes('Требования стран-импортёров'));
+    await p.locator('#search').fill('Турция');
+    await p.locator('#country-list .country-row').filter({hasText:'Турция'}).first().click();
+    await p.waitForFunction(()=>document.querySelector('#sec-globe').classList.contains('is-country'));
+    await p.locator('#back-map').click();
+    await p.waitForFunction(()=>document.querySelector('#sec-globe').classList.contains('is-map'));
+const blocked=await app.evaluate(async({BrowserWindow})=>{try{await BrowserWindow.getAllWindows()[0].webContents.session.fetch('https://example.com');return false;}catch{return true;}});
+    assert(blocked);
+const prefs=await app.evaluate(({BrowserWindow})=>{const p=BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences();return {sandbox:p.sandbox,contextIsolation:p.contextIsolation,nodeIntegration:p.nodeIntegration};});
+    assert.deepEqual(prefs,{sandbox:true,contextIsolation:true,nodeIntegration:false});
+    assert.deepEqual(errors,[]);
+    console.log('PASS standalone export: direct globe startup, no menu/other pages, years, country search/back, reset and offline operation');}finally{await app.close();}})().catch(e=>{console.error(e);process.exitCode=1});

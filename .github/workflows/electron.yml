@@ -3,14 +3,14 @@ name: Build offline Windows application
 on:
   workflow_dispatch:
   push:
-    branches: [electron]
-    tags: ['electron-v*']
+    branches: [codex/export-only]
+    tags: ['export-v*']
     paths:
       - 'electron/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
-      - 'dist/app/**'
+      - 'dist/export-only/**'
       - '.github/workflows/electron.yml'
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
       - run: pnpm test
       - run: pnpm pack:win
       - name: Verify packaged application offline
-        run: node electron/smoke.cjs release/win-unpacked/GrainOceanAtlas.exe
+        run: node electron/smoke.cjs release/win-unpacked/GrainExportAtlas.exe
       - run: pnpm dist:win
       - name: Verify installation, offline launch and uninstall
         run: ./electron/test-installer.ps1
@@ -42,7 +42,7 @@ jobs:
           } | Set-Content release/SHA256SUMS.txt -Encoding utf8
       - uses: actions/upload-artifact@v4
         with:
-          name: grain-ocean-atlas-windows-x64
+          name: grain-export-atlas-windows-x64
           path: |
             release/*.zip
             release/*-Setup.exe
@@ -51,7 +51,7 @@ jobs:
           retention-days: 14
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/electron-v')
+    if: startsWith(github.ref, 'refs/tags/export-v')
     needs: windows
     runs-on: windows-latest
     permissions:
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: grain-ocean-atlas-windows-x64
+          name: grain-export-atlas-windows-x64
           path: release
       - name: Publish GitHub Release
         shell: pwsh
@@ -70,5 +70,5 @@ jobs:
           gh release create "$env:GITHUB_REF_NAME"
           release/*-Setup.exe release/*.zip release/SHA256SUMS.txt
           --repo "$env:GITHUB_REPOSITORY"
-          --title "Путь зерна — Windows $env:GITHUB_REF_NAME"
+          --title "Маршруты экспорта — Windows $env:GITHUB_REF_NAME"
           --notes-file electron/release-notes.md --verify-tag

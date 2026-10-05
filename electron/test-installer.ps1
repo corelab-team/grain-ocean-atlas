@@ -1,26 +1,26 @@
 ﻿$ErrorActionPreference = 'Stop'
 $project = Split-Path $PSScriptRoot -Parent
 $version = (Get-Content (Join-Path $project 'package.json') -Raw | ConvertFrom-Json).version
-$installer = Join-Path $project "release/GrainOceanAtlas-$version-win-x64-Setup.exe"
+$installer = Join-Path $project "release/GrainExportAtlas-$version-win-x64-Setup.exe"
 if (!(Test-Path -LiteralPath $installer)) { throw "Installer missing: $installer" }
 # Do not replace an existing real installation in the current account.
 $existing = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
-    Where-Object { $_.DisplayName -like 'Grain Ocean Atlas*' }
-if ($existing) { throw 'Run this test in a Windows account without Grain Ocean Atlas installed.' }
+    Where-Object { $_.DisplayName -like 'Grain Export Atlas*' }
+if ($existing) { throw 'Run this test in a Windows account without Grain Export Atlas installed.' }
 $temporaryRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
 $fixture = Join-Path $temporaryRoot ('grain-installer-test-' + [guid]::NewGuid().ToString('N'))
 $target = Join-Path $fixture 'application'
 New-Item -ItemType Directory -Path $fixture | Out-Null
-$installed = Join-Path $target 'GrainOceanAtlas.exe'
-$uninstaller = Join-Path $target 'Uninstall GrainOceanAtlas.exe'
+$installed = Join-Path $target 'GrainExportAtlas.exe'
+$uninstaller = Join-Path $target 'Uninstall GrainExportAtlas.exe'
 try {
     $process = Start-Process -FilePath $installer -ArgumentList "/S /currentuser /D=$target" -WindowStyle Hidden -Wait -PassThru
     if ($process.ExitCode -ne 0) { throw "Installation failed: $($process.ExitCode)" }
     if (!(Test-Path -LiteralPath $installed)) { throw 'Installed EXE missing' }
     if (!(Test-Path -LiteralPath $uninstaller)) { throw 'Uninstaller missing' }
     $windowsShell = New-Object -ComObject Shell.Application
-    $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Путь зерна.lnk'
-    $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Путь зерна.lnk'
+    $desktop = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Маршруты экспорта.lnk'
+    $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'Маршруты экспорта.lnk'
     # Exercise a filename outside the system ANSI code page as a regression check.
     $unicodeProbe = Join-Path $fixture 'shortcut-字.lnk'
     Copy-Item -LiteralPath $desktop -Destination $unicodeProbe
@@ -48,7 +48,7 @@ try {
         }
     }
     $remaining = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*' -ErrorAction SilentlyContinue |
-        Where-Object { $_.DisplayName -like 'Grain Ocean Atlas*' }
+        Where-Object { $_.DisplayName -like 'Grain Export Atlas*' }
     if ($remaining) { throw 'Retaining fixture: uninstall registration remains' }
     # Verify the final absolute path before recursively removing only our temporary fixture.
     $resolvedFixture = [IO.Path]::GetFullPath($fixture)

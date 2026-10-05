@@ -46,13 +46,16 @@ test('Offline asset manifest detects missing heavy Figma images', async () => {
   try {
     for (const file of REQUIRED_ASSETS) {
       await fs.mkdir(path.dirname(path.join(root, file)), { recursive: true });
-      await fs.writeFile(path.join(root, file), file === 'index.html' ? '<div id="sec-story"></div><div id="sec-globe"></div><div id="sec-monitoring"></div>' : 'fixture');
+      await fs.writeFile(path.join(root, file), file === 'index.html' ? '<div id="sec-globe"></div>' : 'fixture');
     }
     await fs.writeFile(path.join(root, 'assets-manifest.json'), JSON.stringify(['assets/photos/design.webp']));
     await assert.rejects(validateAssets(root), { code: 'ENOENT' });
     await fs.mkdir(path.join(root, 'assets/photos'), { recursive: true });
     await fs.writeFile(path.join(root, 'assets/photos/design.webp'), 'image fixture');
     assert(await validateAssets(root) > 0);
+    await fs.writeFile(path.join(root, 'index.html'), '<div id="sec-globe"></div><button id="home-btn">Menu</button>');
+    await assert.rejects(validateAssets(root), /Unexpected full-application element: home-btn/);
+    await fs.writeFile(path.join(root, 'index.html'), '<div id="sec-globe"></div>');
     await fs.writeFile(path.join(root, 'assets-manifest.json'), JSON.stringify(['assets/../secret']));
     await assert.rejects(validateAssets(root), /Invalid resource manifest path/);
   } finally {
