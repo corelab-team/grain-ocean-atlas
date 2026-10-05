@@ -1348,7 +1348,12 @@
 
     foodPanels: function () {
       var stack = el('div', 'sc-panel-stack');
-      (foodTab().panels || []).forEach(function (p) { stack.appendChild(panelEl(p)); });
+      (foodTab().panels || []).forEach(function (p) {
+        var panel = panelEl(p);
+        panel.style.height = 'auto';
+        if (p.h) panel.style.minHeight = p.h + 'px';
+        stack.appendChild(panel);
+      });
       return stack;
     },
     technicalNext: function () {
