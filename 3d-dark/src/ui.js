@@ -73,6 +73,7 @@
 
     $('intro-go').addEventListener('click', function () { handlers.onIntroGo(); });
     $('back-map').addEventListener('click', function () { handlers.onBackToMap(); });
+    $('reset-view-icon').src = U.asset('assets/concept/svg/globe-reset.svg');
     $('reset-view').addEventListener('click', function () { handlers.onResetView(); });
 
     bindScrollbar(els.list, $('sb-countries'));
