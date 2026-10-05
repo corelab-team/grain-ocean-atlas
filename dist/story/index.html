@@ -9390,7 +9390,9 @@ video.sc-cover-bg {
   function technicalOverlay(root) {
     var current = find(C.technical, tabKey());
     (current.markers || []).forEach(function (marker) {
-      var b = el('button', 'sc-marker is-focus' + (st.technicalPart === marker.key ? ' is-on' : ''), marker.label);
+      var active = (st.technicalPart || current.markers[0].key) === marker.key;
+      var b = el('button', 'sc-marker is-focus' + (active ? ' is-on' : ''), marker.label);
+      b.setAttribute('aria-pressed', String(active));
       b.type = 'button'; b.style.left = marker.x + 'px'; b.style.top = marker.y + 'px';
       if (marker.w) b.style.width = marker.w + 'px';
       b.addEventListener('click', function () { resetIdle(); st.technicalPart = marker.key; rerender(); });
@@ -9608,13 +9610,10 @@ video.sc-cover-bg {
     technicalAbout: function () {
       var t = find(C.technical, tabKey());
       var stack = el('div', 'sc-panel-stack is-technical-panels');
-      var keys = st.technicalPart ? [st.technicalPart] : t.defaultPanels;
+      var keys = [st.technicalPart || t.markers[0].key];
       t.panels.forEach(function (part, index) {
         if (keys.indexOf(part.key) < 0) return;
-        var displayed = st.technicalPart ? part : {
-          title: (index + 1) + '. ' + part.title,
-          text: part.text
-        };
+        var displayed = part;
         var panel = panelEl(displayed);
         panel.style.height = 'auto';
         panel.style.minHeight = part.h + 'px';
