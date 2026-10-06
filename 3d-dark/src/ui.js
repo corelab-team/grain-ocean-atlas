@@ -396,8 +396,10 @@
 
   function renderCountry(info) {
     els.countryName.textContent = info.name;
-    els.countryTotal.textContent = U.fmtVolume(info.value);
-    els.countryRank.textContent = info.rank + ' место';
+    var empty = !!info.noDeliveries;
+    els.countryTotal.textContent = empty ? 'Продукция не поставлялась' : U.fmtVolume(info.value);
+    els.countryTotal.closest('.box').classList.toggle('is-no-deliveries', empty);
+    els.countryRank.textContent = empty ? '—' : info.rank + ' место';
 
     els.countryProducts.innerHTML = '';
     info.products.forEach(function (p) {

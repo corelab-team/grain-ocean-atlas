@@ -2478,6 +2478,12 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   text-shadow: 0 1px 3px rgba(0, 0, 0, .45);
 }
 
+/* Keep the country selected in years without deliveries. */
+#sec-globe #panel-country.is-no-deliveries .metric-value { font-size: 30px; line-height: 1.25; }
+#sec-globe #panel-country.is-no-deliveries .metric-unit,
+#sec-globe #panel-country.is-no-deliveries .metric-caption,
+#sec-globe #panel-country.is-no-deliveries .rank-row { display: none; }
+
 </style>
 <!-- подключён ради одних только начертаний Inter (@font-face): все его
      правила начинаются с #sec-story и на этот раздел не действуют -->
@@ -4599,6 +4605,16 @@ body.story-screen { background: var(--sc-bg, #141D23); }
   line-height: 29px;
   justify-content: center;
 }
+
+/* Laboratory influence screens, Figma 777:865 and 779:1027. */
+#sec-story .sc-quality-next { display: flex; gap: 20px; height: 106px; }
+#sec-story .sc-quality-next .sc-btn { flex: 1; min-width: 0; height: 106px; }
+#sec-story .sc-quality-influence { inset: 16px; display: block; background: #0c1813; border-radius: 32px; }
+#sec-story .sc-quality-infographic { position: absolute; left: 48px; top: 55px; width: 1793px; height: 946px; object-fit: cover; }
+#sec-story .sc-quality-close { position: absolute; left: 1741px; top: 79px; width: 76px; height: 76px; padding: 24px; border-radius: 999px; display: flex; align-items: center; justify-content: center; }
+#sec-story .sc-quality-close img { flex: none; }
+
+#sec-story .sc-quality-next.has-influence .sc-btn { white-space: pre-line; }
 
 </style>
 <style>
@@ -8313,8 +8329,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
   function renderCountry(info) {
     els.countryName.textContent = info.name;
-    els.countryTotal.textContent = U.fmtVolume(info.value);
-    els.countryRank.textContent = info.rank + ' место';
+    var empty = !!info.noDeliveries;
+    els.countryTotal.textContent = empty ? 'Продукция не поставлялась' : U.fmtVolume(info.value);
+    els.countryTotal.closest('.box').classList.toggle('is-no-deliveries', empty);
+    els.countryRank.textContent = empty ? '—' : info.rank + ' место';
 
     els.countryProducts.innerHTML = '';
     info.products.forEach(function (p) {
@@ -8488,9 +8506,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     selected = null;
 
     if (!keep) return;
-    // поставок в этом году не было — возвращаемся к общему глобусу
-    var has = listCache.some(function (it) { return it.name === keep; });
-    if (has) goToCountry(keep, false); else goMap();
+    goToCountry(keep, false);
   }
 
   /* ---- кадр A: вход в раздел ---- */
@@ -8552,18 +8568,18 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function goToCountry(name, refocus) {
     if (!byName[name]) return;
     var i = listCache.findIndex(function (it) { return it.name === name; });
-    if (i < 0) return;               // в этом году поставок не было
 
     selected = name;
     state = 'country';
     UI.setState('country');
-    var c = listCache[i];
+    var c = i >= 0 ? listCache[i] : byName[name];
     UI.renderCountry({
       name: name,
-      value: c.value,
+      value: i >= 0 ? c.value : 0,
+      noDeliveries: i < 0,
       year: year,
-      rank: i + 1,
-      products: productsFor(name, year),
+      rank: i >= 0 ? i + 1 : null,
+      products: i >= 0 ? productsFor(name, year) : [],
       origin: CFG.origin.name,
       port: c.port,
       distanceKm: U.greatCircleKm(CFG.origin.lat, CFG.origin.lon, c.lat, c.lon)

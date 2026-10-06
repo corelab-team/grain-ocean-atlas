@@ -1266,6 +1266,16 @@
     },
 
     /* --- экран 11: карточка выбранного показателя --- */
+    qualityNext: function () {
+      var box = el('div', 'sc-quality-next');
+      box.appendChild(button({ label: 'Результаты\nоценки →', to: 'quality-2' }, 'sc-btn'));
+      if (selKey() === 'falling' || selKey() === 'gluten') {
+        box.classList.add('has-influence');
+        box.appendChild(button({ label: 'На что\nвлияет →', action: 'qualityInfluence' }, 'sc-btn'));
+      }
+      return box;
+    },
+
     grainIndicator: function () {
       var i = find(C.grainIndicators, selKey());
       return panelEl({ title: i.name, text: i.text });
@@ -1937,7 +1947,35 @@
       st.over = over;
     },
 
-    closeOver: function () { if (st.over) { st.over.remove(); st.over = null; } }
+    qualityInfluence: function () {
+      var key = selKey();
+      if (key !== 'falling' && key !== 'gluten') return;
+      var over = el('div', 'sc-over sc-quality-influence');
+      over.setAttribute('role', 'dialog'); over.setAttribute('aria-modal', 'true');
+      over.setAttribute('aria-label', key === 'falling' ? 'На что влияет число падения' : 'На что влияет клейковина');
+      var image = new Image();
+      image.className = 'sc-quality-infographic';
+      image.src = U.asset(key === 'falling' ? 'assets/photos/concept/quality-falling-influence.jpg' : 'assets/photos/concept/quality-gluten-influence.jpg');
+      image.alt = over.getAttribute('aria-label'); over.appendChild(image);
+      var close = button({ label: '', action: 'closeOver' }, 'sc-btn is-gold sc-quality-close');
+      close.setAttribute('aria-label', 'Закрыть');
+      var icon = new Image(); icon.src = U.asset('assets/concept/svg/quality-influence-close.svg'); icon.alt = '';
+      close.appendChild(icon); over.appendChild(close);
+      st.overFocus = document.activeElement;
+      if (st.video) st.video.el.pause();
+      $('view').appendChild(over); st.over = over; close.focus();
+      over.addEventListener('keydown', function (e) { if (e.key === 'Escape') ACTIONS.closeOver(); });
+    },
+
+    closeOver: function () {
+      if (st.over) {
+        var influence = st.over.classList.contains('sc-quality-influence');
+        st.over.remove(); st.over = null;
+        if (influence && st.video) { var play = st.video.el.play(); if (play && play.catch) play.catch(function () {}); }
+        if (st.overFocus && st.overFocus.isConnected) st.overFocus.focus();
+        st.overFocus = null;
+      }
+    }
   };
 
   /* Что доигрывает ?demo=1 на каждом экране — для снимков и показа. */
