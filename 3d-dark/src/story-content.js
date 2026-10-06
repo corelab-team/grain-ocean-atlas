@@ -1796,7 +1796,7 @@
       title: 'Выездная экспертиза в период вегетации',
       // подзаголовок убран по правке заказчика 29.09 («удалить текст»)
       scene: { pic: pic('Агроном на изометрическом участке поля',
-        'assets/photos/concept/seed-2-scene-updated.jpg', 'фото', '', [-36, -27, 1960, 1103]) },
+        'assets/photos/concept/seed-2-field-updated.png', 'фото', '', [-36, -27, 1960, 1103]) },
       topRight: { label: 'В Центр', to: 'hub' },
       defaultSel: 'sort',
       radios: SEED_ZONES,
