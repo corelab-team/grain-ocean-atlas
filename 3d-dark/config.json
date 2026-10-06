@@ -35,7 +35,7 @@
   "_news": "Лента новостей на кадре «Карта» лежит в data/news.json: ключ — год, значение — список пунктов. Здесь её больше нет.",
   "_yearNote": "Пометка рядом с годом в плашке «Экспорт зерна, ГОД» — для лет, посчитанных не полностью.",
   "yearNote": {
-    "2026": "на 30.06.2026"
+    "2026": "на 01.10.2026"
   },
   "theme": "navy",
   "_appGlobeTheme": "Тема раздела «Маршруты экспорта» в едином приложении app.html. По решению заказчика раздел синий (navy), презентация и мониторинг остаются зелёными. Чтобы вернуть зелёный раздел, поставьте \"green\". Поле `theme` выше — тема отдельной страницы index.html.",
@@ -46,7 +46,6 @@
     "strongNote": false,
     "specsPanel": false
   },
-
   "themes": {
     "navy": {
       "title": "Синяя (тот же шар, что в зелёной, в синих цветах)",
@@ -76,23 +75,23 @@
       },
       "_globe": "Всё как в зелёной теме — те же свет, кромка, дуги, границы и положение. Синяя тема отличается только палитрой (блок colors выше) и своими текстурами earth_land_*_figma.jpg. Золото у поверхности приглушено, чтобы сквозь него читалась дневная суша, как в эталоне заказчика: огни городов (lightsIntensity 0.40 против 1.85 в зелёной), непрозрачность и ореол дуг (arcOpacity, arcHalo), размер и яркость точек-стран и пучка у Новороссийска (dotScale). В зелёной теме этих полей нет — там всё по-прежнему.",
       "globe": {
-        "lightScale": 1.40,
-        "lightsIntensity": 0.40,
+        "lightScale": 1.4,
+        "lightsIntensity": 0.4,
         "rimStrength": 0,
         "haloStrength": 0,
         "glowStrength": 0.75,
         "hazeStrength": 0.55,
         "hazePower": 2.0,
         "glowWidth": 0.035,
-        "bgBrightness": 0.80,
-        "edgeStrength": 6.50,
+        "bgBrightness": 0.8,
+        "edgeStrength": 6.5,
         "edgePower": 24.0,
         "edgeRadius": 1.002,
         "edgeBias": 0.55,
         "edgeSoftness": 6.0,
         "arcStart": 0.45,
-        "arcStartLen": 0.10,
-        "arcWidth": 0.50,
+        "arcStartLen": 0.1,
+        "arcWidth": 0.5,
         "arcOpacity": 0.95,
         "arcHalo": 0.55,
         "dotScale": 0.95,
@@ -106,7 +105,7 @@
         "fov": 20,
         "defaultZoom": 4.2,
         "homeX": 0.496,
-        "homeY": 0.450,
+        "homeY": 0.45,
         "homeLat": 20,
         "homeLon": 35,
         "otherArcs": 0,
@@ -149,11 +148,11 @@
         "starGlow": "130,215,195"
       },
       "globe": {
-        "lightScale": 1.20,
+        "lightScale": 1.2,
         "lightsIntensity": 1.85,
         "rimStrength": 0,
         "haloStrength": 0,
-        "edgeStrength": 6.50,
+        "edgeStrength": 6.5,
         "edgePower": 24.0,
         "edgeRadius": 1.002,
         "edgeBias": 0.06,
@@ -170,19 +169,19 @@
     }
   },
   "globe": {
-    "autoRotateSpeed": 0.020,
+    "autoRotateSpeed": 0.02,
     "homeLat": 20,
     "homeLon": 35,
     "defaultZoom": 4.3,
     "focusZoom": 2.9,
     "focusMaxZoom": 4.3,
-    "countryX": 0.40,
+    "countryX": 0.4,
     "countryY": 0.51,
     "minZoom": 2.0,
     "maxZoom": 7.5,
     "arcSegments": 56,
     "lightsIntensity": 1.5,
-    "rimStrength": 0.50,
+    "rimStrength": 0.5,
     "haloStrength": 0.15
   }
 }
