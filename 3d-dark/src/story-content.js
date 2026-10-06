@@ -1719,9 +1719,11 @@
           866
         ],
         "img": "assets/photos/concept/seed-1-grain-bad.webp",
+        "baseAt": [-47.598, -15.001, 949.314, 888.747],
         "cap": "Зерно с внешними повреждениями",
         "top": {
           "img": "assets/photos/concept/seed-1-grain-ok.webp",
+          "at": [0, 0, 866, 866],
           "cap": "Зерно с целой оболочкой"
         },
         "x": 48.7,
