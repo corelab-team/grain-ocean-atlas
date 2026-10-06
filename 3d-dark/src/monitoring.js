@@ -1344,7 +1344,6 @@
       row.appendChild(el('span', 'mn-transport-label', item.label));
       card.appendChild(row); box.appendChild(card);
     });
-    if (branch.transportNote) box.appendChild(el('section', 'mn-panel mn-transport-note', branch.transportNote));
   }
 
   function drawPresence() {
