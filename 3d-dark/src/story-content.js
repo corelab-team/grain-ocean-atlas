@@ -876,7 +876,7 @@
      Метки стоят прямо на предметах, координаты — центр метки. */
   var FEED_STATES = {
     feed: {
-      img: 'assets/photos/concept/feed-1-scene.webp', at: [0, -8, 1888, 1063],
+      img: 'assets/photos/concept/feed-1-scene-updated.jpg', at: [0, -8, 1888, 1063],
       /* порядок крошек заказчик поправил 21.09: сначала сырьё */
       sub: 'Зерновое сырьё → корм → животное',
       title: 'Как получают комбикорм',
@@ -1796,7 +1796,7 @@
       title: 'Выездная экспертиза в период вегетации',
       // подзаголовок убран по правке заказчика 29.09 («удалить текст»)
       scene: { pic: pic('Агроном на изометрическом участке поля',
-        'assets/photos/concept/seed-2-scene.webp', 'фото', '', [-36, -27, 1960, 1103]) },
+        'assets/photos/concept/seed-2-scene-updated.jpg', 'фото', '', [-36, -27, 1960, 1103]) },
       topRight: { label: 'В Центр', to: 'hub' },
       defaultSel: 'sort',
       radios: SEED_ZONES,
@@ -2610,7 +2610,7 @@
       eyebrow: 'Станция 7 · Экспорт',
       title: 'Контроль экспортной\nпродукции',
       scene: { pic: pic('Морской порт: погрузка сухогруза',
-        'assets/photos/concept/export-1-scene.webp', 'фото', '', [-58, -138, 2122, 1194]) },
+        'assets/photos/concept/export-1-scene-updated.jpg', 'фото', '', [-58, -138, 2122, 1194]) },
       topRight: { label: 'В Центр', to: 'hub' },
       right: {
         top: 222,
@@ -2636,7 +2636,7 @@
       eyebrow: 'Станция 7 · Экспорт',
       title: 'Готовность к международной поставке',
       scene: { pic: pic('Сухогруз и вагоны-зерновозы',
-        'assets/photos/concept/export-2-scene.webp', 'фото', '', [-15, -15, 1918, 1079]) },
+        'assets/photos/concept/export-2-scene-updated.jpg', 'фото', '', [-15, -15, 1918, 1079]) },
       topRight: { label: 'В Центр', to: 'hub' },
       defaultSel: 'tr',
       /* ПРАВКА ЗАКАЗЧИКА 21.09 сняла заглушку 29.09 по требованию
