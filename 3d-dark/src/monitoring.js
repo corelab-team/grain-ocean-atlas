@@ -577,18 +577,19 @@
     ctx.globalAlpha = 1;
   }
 
-  // Coordinates of the seven port icons in Figma 753:1725. They follow the map on pan/zoom.
-  var transportPixels = [[206,842],[113,710],[120,653],[150,659],[171,657],[364,343],[391,335]];
+  // Geographic port positions use the same projection as regions and laboratories.
+  var transportPoints = [
+    [33.525,44.616], [37.78,44.72], [38.94,47.205],
+    [39.42,47.10], [39.72,47.23], [30.22,59.90], [28.40,59.67]
+  ];
   var transportImage = new Image();
   transportImage.onload = function () { need = true; };
   transportImage.src = U.asset('assets/concept/svg/presence-anchor.svg');
   function drawTransportPoints() {
     if (!transportImage.complete || !transportImage.naturalWidth || !geo) return;
-    var reference = VIEW.presence;
-    transportPixels.forEach(function (pixel) {
-      var wx = geo.box[0] / 2 + (pixel[0] - 16 - reference.x) / reference.k;
-      var wy = geo.box[1] / 2 + (pixel[1] - 16 - reference.y) / reference.k;
-      var point = toCanvas(wx, wy);
+    transportPoints.forEach(function (lonLat) {
+      var world = project(lonLat[0], lonLat[1]);
+      var point = toCanvas(world[0], world[1]);
       ctx.drawImage(transportImage, (point[0] - 8) * dpr, (point[1] - 8) * dpr, 16 * dpr, 16 * dpr);
     });
   }
