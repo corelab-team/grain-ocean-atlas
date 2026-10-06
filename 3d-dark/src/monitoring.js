@@ -1718,6 +1718,7 @@
   function boot(active) {
     live = active !== false;
     ctx = $('map').getContext('2d');
+    $('legend-strong-wheat').src = U.asset('assets/photos/concept/mon-strong-wheat-legend.png');
     $('scene-video').poster = U.asset(SCENE_IMG);
     $('scene-video').muted = true;
 

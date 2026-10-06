@@ -4606,6 +4606,16 @@ body.story-screen { background: var(--sc-bg, #141D23); }
   justify-content: center;
 }
 
+/* Laboratory influence screens, Figma 777:865 and 779:1027. */
+#sec-story .sc-quality-next { display: flex; gap: 20px; height: 106px; }
+#sec-story .sc-quality-next .sc-btn { flex: 1; min-width: 0; height: 106px; }
+#sec-story .sc-quality-influence { inset: 16px; display: block; background: #0c1813; border-radius: 32px; }
+#sec-story .sc-quality-infographic { position: absolute; left: 48px; top: 55px; width: 1793px; height: 946px; object-fit: cover; }
+#sec-story .sc-quality-close { position: absolute; left: 1741px; top: 79px; width: 76px; height: 76px; padding: 24px; border-radius: 999px; display: flex; align-items: center; justify-content: center; }
+#sec-story .sc-quality-close img { flex: none; }
+
+#sec-story .sc-quality-next.has-influence .sc-btn { white-space: pre-line; }
+
 </style>
 <style>
 /* ===================================================================
