@@ -1436,5 +1436,4 @@ body.mon-screen { background: #141d23; }
 #sec-monitoring .mn-transport-card:last-child { height: auto; }
 #sec-monitoring .mn-transport-label { min-width: 0; }
 #sec-monitoring .mn-transport-card.is-no-icon .mn-transport-row { margin-top: 0; }
-#sec-monitoring .mn-transport-empty, #sec-monitoring .mn-transport-note { flex: none; width: 100%; box-sizing: border-box; font-size: 20px; line-height: 28px; color: var(--mn-muted); white-space: pre-line; overflow-wrap: break-word; }
-#sec-monitoring .mn-transport-note { font-size: 16px; line-height: 22px; }
+#sec-monitoring .mn-transport-empty { flex: none; width: 100%; box-sizing: border-box; font-size: 20px; line-height: 28px; color: var(--mn-muted); white-space: pre-line; overflow-wrap: break-word; }
