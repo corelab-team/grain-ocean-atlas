@@ -753,14 +753,114 @@
    * Процент ГОСТ в соседней плашке тоже общий — взвешен по
    * обследованному объёму (bothCompliance).
    */
+  var TOTALS_STORAGE_KEY = 'grainAtlas.monitoringTotals.v1';
+  var totalsEditor = null;
+  var totalsEditorFocus = null;
+
+  function readTotalsOverrides() {
+    try {
+      var values = JSON.parse(global.localStorage.getItem(TOTALS_STORAGE_KEY) || '{}');
+      return values && typeof values === 'object' && !Array.isArray(values) ? values : {};
+    } catch (e) { return {}; }
+  }
+
+  function displayedTotal(field) {
+    var saved = year === 2026 ? readTotalsOverrides()['2026'] : null;
+    var value = saved && saved[field];
+    return typeof value === 'number' && isFinite(value) && value >= 0 ? value : bothSum(field);
+  }
+
+  function closeTotalsEditor() {
+    if (!totalsEditor) return;
+    totalsEditor.remove(); totalsEditor = null;
+    if (totalsEditorFocus && totalsEditorFocus.isConnected) totalsEditorFocus.focus();
+    totalsEditorFocus = null;
+  }
+
+  function parseTotalInput(text) {
+    var value = text.replace(/\s/g, '').replace(',', '.');
+    if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(value)) return null;
+    var number = Number(value);
+    return isFinite(number) && number >= 0 ? number : null;
+  }
+
+  function openTotalsEditor() {
+    if (totalsEditor || !mon || !live || screen === 'presence' || year !== 2026) return;
+    if (global.Keyboard) global.Keyboard.close();
+    var editingYear = '2026';
+    var overlay = el('div', 'mn-total-editor');
+    var form = el('form', 'mn-total-editor-panel');
+    form.setAttribute('role', 'dialog'); form.setAttribute('aria-modal', 'true');
+    form.setAttribute('aria-labelledby', 'mn-totals-editor-title');
+    var heading = el('h2', null, 'Всего по России · ' + year);
+    heading.id = 'mn-totals-editor-title'; form.appendChild(heading);
+    form.appendChild(el('p', null, 'Изменяются только две цифры в общей плашке. Значения сохраняются на этом устройстве.'));
+    var fields = {};
+    [['gross', 'Валовой сбор, тыс. т'], ['surveyed', 'Обследовано зерна, тыс. т']].forEach(function (item) {
+      var label = el('label', 'mn-total-editor-field', item[1]);
+      var input = document.createElement('input');
+      input.type = 'text'; input.inputMode = 'decimal'; input.autocomplete = 'off';
+      var value = displayedTotal(item[0]);
+      input.value = value == null ? '' : String(value).replace('.', ',');
+      label.appendChild(input); form.appendChild(label); fields[item[0]] = input;
+    });
+    var error = el('div', 'mn-total-editor-error');
+    error.setAttribute('role', 'alert'); form.appendChild(error);
+    var actions = el('div', 'mn-total-editor-actions');
+    function action(label, type, handler) {
+      var button = el('button', 'mn-btn', label); button.type = type;
+      if (handler) button.addEventListener('click', handler);
+      actions.appendChild(button); return button;
+    }
+    action('Сбросить', 'button', function () {
+      try {
+        var all = readTotalsOverrides(); delete all[editingYear];
+        if (Object.keys(all).length) global.localStorage.setItem(TOTALS_STORAGE_KEY, JSON.stringify(all));
+        else global.localStorage.removeItem(TOTALS_STORAGE_KEY);
+      } catch (e) { error.textContent = 'Не удалось сбросить значения. Хранилище браузера недоступно.'; return; }
+      fields.gross.value = String(bothSum('gross')).replace('.', ',');
+      fields.surveyed.value = String(bothSum('surveyed')).replace('.', ',');
+      error.textContent = ''; drawTotal(); fields.gross.focus(); fields.gross.select();
+    });
+    action('Отмена', 'button', closeTotalsEditor);
+    action('Сохранить', 'submit').classList.add('is-primary');
+    form.appendChild(actions); overlay.appendChild(form);
+    form.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var gross = parseTotalInput(fields.gross.value), surveyed = parseTotalInput(fields.surveyed.value);
+      if (gross === null || surveyed === null) {
+        error.textContent = 'Введите два неотрицательных числа. Можно использовать запятую или точку.';
+        (gross === null ? fields.gross : fields.surveyed).focus(); return;
+      }
+      try {
+        var all = readTotalsOverrides(); all[editingYear] = { gross: gross, surveyed: surveyed };
+        global.localStorage.setItem(TOTALS_STORAGE_KEY, JSON.stringify(all));
+      } catch (e) { error.textContent = 'Не удалось сохранить значения. Хранилище браузера недоступно.'; return; }
+      drawTotal(); closeTotalsEditor();
+    });
+    overlay.addEventListener('click', function (event) { if (event.target === overlay) closeTotalsEditor(); });
+    overlay.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape') { event.preventDefault(); closeTotalsEditor(); }
+      if (event.key === 'Tab') {
+        var nodes = Array.prototype.slice.call(form.querySelectorAll('input, button'));
+        var index = nodes.indexOf(document.activeElement);
+        if (event.shiftKey && index === 0) { event.preventDefault(); nodes[nodes.length - 1].focus(); }
+        else if (!event.shiftKey && index === nodes.length - 1) { event.preventDefault(); nodes[0].focus(); }
+      }
+    });
+    totalsEditorFocus = document.activeElement; totalsEditor = overlay;
+    $('card').appendChild(overlay); fields.gross.focus(); fields.gross.select();
+    resetIdle();
+  }
+
   function drawTotal() {
     var box = $('total-body');
     box.textContent = '';
-    bigNum(el2(box), fmt1(bothSum('gross')), 'тыс. т',
+    bigNum(el2(box), fmt1(displayedTotal('gross')), 'тыс. т',
       'общий валовой сбор мягкой и твёрдой пшеницы');
     // слово «урожай» из подписи убрали (правка заказчика 29.09): просят,
     // чтобы мониторинг читался сам по себе за год, без отсылки к урожаю
-    bigNum(el2(box), fmt1(bothSum('surveyed')), 'тыс. т',
+    bigNum(el2(box), fmt1(displayedTotal('surveyed')), 'тыс. т',
       'обследовано зерна за ' + year + ' год');
     bigNum($('gost-body'), dec1(bothCompliance()), '%',
       'соответствует требованиям ГОСТ');
@@ -1437,6 +1537,7 @@
   }
 
   function show(name) {
+    closeTotalsEditor();
     screen = name;
     syncRegionVideo();
     if (global.Keyboard) global.Keyboard.close();
@@ -1822,6 +1923,14 @@
       $('card-pres').addEventListener('scroll', syncPresBar, { passive: true });
       drawPresCount();
 
+      document.addEventListener('keydown', function (event) {
+        if (event.ctrlKey && event.altKey && !event.shiftKey && event.code === 'KeyM' && live && screen !== 'presence' && year === 2026) {
+          event.preventDefault(); if (!event.repeat) openTotalsEditor();
+        }
+      });
+      global.addEventListener('storage', function (event) {
+        if (mon && (event.key === TOTALS_STORAGE_KEY || event.key === null)) drawTotal();
+      });
       global.addEventListener('resize', fitStage);
       ['pointerdown', 'pointermove', 'keydown', 'wheel'].forEach(function (ev) {
         document.addEventListener(ev, resetIdle, { passive: true });
@@ -1925,6 +2034,7 @@
       },
       hide: function () {
         live = false;
+        closeTotalsEditor();
         syncRegionVideo();
         if (global.Keyboard) global.Keyboard.close();
         stopLoop();
