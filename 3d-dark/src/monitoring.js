@@ -1318,22 +1318,33 @@
     var box = $('pres-transport');
     if (!box) return;
     box.textContent = '';
+    box.scrollTop = 0;
     var icons = {
       road: 'assets/concept/svg/presence-road.svg',
       port: 'assets/concept/svg/presence-port.svg',
+      sea: 'assets/concept/svg/presence-port.svg',
       rail: 'assets/concept/svg/presence-rail.svg',
       warehouse: 'assets/concept/svg/presence-warehouse.svg'
     };
-    ((pres && pres.transportSummary) || []).forEach(function (item) {
+    var branch = presRec(presId);
+    var items = (branch && branch.transportSummary) || [];
+    if (!items.length) {
+      box.appendChild(el('section', 'mn-panel mn-transport-empty', 'Данные об инфраструктуре этого филиала не предоставлены'));
+      return;
+    }
+    items.forEach(function (item) {
       var card = el('section', 'mn-panel mn-transport-card');
-      var icon = new Image();
-      icon.src = U.asset(icons[item.key]); icon.alt = ''; icon.width = icon.height = 40;
-      card.appendChild(icon);
+      if (icons[item.key]) {
+        var icon = new Image();
+        icon.src = U.asset(icons[item.key]); icon.alt = ''; icon.width = icon.height = 40;
+        card.appendChild(icon);
+      } else card.classList.add('is-no-icon');
       var row = el('div', 'mn-transport-row');
       row.appendChild(el('b', 'mn-transport-value', String(item.count)));
       row.appendChild(el('span', 'mn-transport-label', item.label));
       card.appendChild(row); box.appendChild(card);
     });
+    if (branch.transportNote) box.appendChild(el('section', 'mn-panel mn-transport-note', branch.transportNote));
   }
 
   function drawPresence() {

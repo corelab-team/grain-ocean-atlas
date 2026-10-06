@@ -1429,3 +1429,12 @@ body.mon-screen { background: #141d23; }
   filter: blur(250px); pointer-events: none;
 }
 #sec-monitoring.on-presence #card::before { z-index: 1; }
+
+/* Infrastructure from the customer's document, selected per branch. */
+#sec-monitoring .pres-transport { max-height: 780px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; overscroll-behavior: contain; touch-action: pan-y; }
+#sec-monitoring .mn-transport-card { flex: none; width: 100%; height: auto; min-height: 184px; }
+#sec-monitoring .mn-transport-card:last-child { height: auto; }
+#sec-monitoring .mn-transport-label { min-width: 0; }
+#sec-monitoring .mn-transport-card.is-no-icon .mn-transport-row { margin-top: 0; }
+#sec-monitoring .mn-transport-empty, #sec-monitoring .mn-transport-note { flex: none; width: 100%; box-sizing: border-box; font-size: 20px; line-height: 28px; color: var(--mn-muted); white-space: pre-line; overflow-wrap: break-word; }
+#sec-monitoring .mn-transport-note { font-size: 16px; line-height: 22px; }
