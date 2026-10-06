@@ -138,7 +138,8 @@ SIDECARS = [
     (GREEN_OUT, GLOBE_SIDE),
     (OUT / "proto", GLOBE_SIDE),
     (STORY_OUT, STORY_SIDE),
-    # экраны Блока 3 и мониторинга тяжёлых файлов не показывают
+    (MON_OUT, ("assets/video/grain-scan.mp4",)),
+    # экран Блока 3 тяжёлых файлов не показывает
 ]
 side = ROOT / "dist" / "assets"
 if side.is_dir():

@@ -172,6 +172,7 @@
   ];
 
   var SCENE_IMG = 'assets/photos/concept/mon-region-scene.webp';
+  var SCENE_VIDEO = 'assets/video/grain-scan.mp4';
 
   /* Проекция контуров: Альберса, как в tools/make_regions.py. Точки
      лабораторий лежат в файле в градусах, здесь переводим их в те же
@@ -1424,8 +1425,19 @@
 
   /* ------------------------------ переходы ------------------------------ */
 
+  function syncRegionVideo() {
+    var video = $('scene-video');
+    if (!video) return;
+    if (live && screen === 'region') {
+      if (!video.getAttribute('src')) video.src = U.asset(SCENE_VIDEO);
+      var playing = video.play();
+      if (playing && playing.catch) playing.catch(function () {});
+    } else video.pause();
+  }
+
   function show(name) {
     screen = name;
+    syncRegionVideo();
     if (global.Keyboard) global.Keyboard.close();
     $('scr-map').classList.toggle('is-on', name === 'map');
     $('scr-region').classList.toggle('is-on', name === 'region');
@@ -1705,7 +1717,8 @@
   function boot(active) {
     live = active !== false;
     ctx = $('map').getContext('2d');
-    $('scene-img').src = U.asset(SCENE_IMG);
+    $('scene-video').poster = U.asset(SCENE_IMG);
+    $('scene-video').muted = true;
 
     return U.loadJSON('inline-config', 'config.json').then(function (cfg) {
       CFG = cfg || CFG;
@@ -1910,6 +1923,7 @@
       },
       hide: function () {
         live = false;
+        syncRegionVideo();
         if (global.Keyboard) global.Keyboard.close();
         stopLoop();
       },
