@@ -120,9 +120,7 @@
     selected = null;
 
     if (!keep) return;
-    // поставок в этом году не было — возвращаемся к общему глобусу
-    var has = listCache.some(function (it) { return it.name === keep; });
-    if (has) goToCountry(keep, false); else goMap();
+    goToCountry(keep, false);
   }
 
   /* ---- кадр A: вход в раздел ---- */
@@ -184,18 +182,18 @@
   function goToCountry(name, refocus) {
     if (!byName[name]) return;
     var i = listCache.findIndex(function (it) { return it.name === name; });
-    if (i < 0) return;               // в этом году поставок не было
 
     selected = name;
     state = 'country';
     UI.setState('country');
-    var c = listCache[i];
+    var c = i >= 0 ? listCache[i] : byName[name];
     UI.renderCountry({
       name: name,
-      value: c.value,
+      value: i >= 0 ? c.value : 0,
+      noDeliveries: i < 0,
       year: year,
-      rank: i + 1,
-      products: productsFor(name, year),
+      rank: i >= 0 ? i + 1 : null,
+      products: i >= 0 ? productsFor(name, year) : [],
       origin: CFG.origin.name,
       port: c.port,
       distanceKm: U.greatCircleKm(CFG.origin.lat, CFG.origin.lon, c.lat, c.lon)
