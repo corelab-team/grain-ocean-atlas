@@ -29,7 +29,7 @@ else {
     const root = app.isPackaged ? path.join(process.resourcesPath, 'atlas') :
       path.resolve(__dirname, '../dist/app');
     await validateAssets(root);
-    const localSession = session.fromPartition('atlas');
+    const localSession = session.fromPartition(verify ? 'atlas' : 'persist:atlas');
     localSession.protocol.handle('atlas', request => fileResponse(request, root));
     localSession.webRequest.onBeforeRequest((details, callback) => {
       callback({ cancel: !isAllowedRequest(details.url) });
