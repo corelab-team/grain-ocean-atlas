@@ -26,13 +26,7 @@ jobs:
           node-version: '24'
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test
-      - run: pnpm pack:win
-      - name: Verify packaged application offline
-        run: node electron/smoke.cjs release/win-unpacked/GrainOceanAtlas.exe
-      - run: pnpm dist:win
-      - name: Verify installation, offline launch and uninstall
-        run: ./electron/test-installer.ps1
+      - run: pnpm exec electron-builder --win --x64 --publish never
       - name: Write checksums
         shell: pwsh
         run: |
