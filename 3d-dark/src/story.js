@@ -1235,7 +1235,16 @@
     /* --- экран 6: доза удобрения --- */
     fertilizerAbout: function () {
       var f = find(C.fertilizers, selKey());
-      return panelEl({ title: f.name, text: f.text });
+      var panel = panelEl({ title: f.name, text: f.text });
+      if (f.emphasis) {
+        var paragraph = panel.querySelector('.sc-panel-p');
+        var parts = f.text.split(f.emphasis);
+        paragraph.textContent = '';
+        paragraph.appendChild(document.createTextNode(parts[0]));
+        paragraph.appendChild(el('strong', null, f.emphasis));
+        paragraph.appendChild(document.createTextNode(parts.slice(1).join(f.emphasis)));
+      }
+      return panel;
     },
 
     /* --- экран 7: панель слева с пояснением выбранного направления.

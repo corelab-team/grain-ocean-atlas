@@ -1400,3 +1400,32 @@ body.mon-screen { background: #141d23; }
 #sec-monitoring.on-presence #card {
   background: var(--mn-pres-underlay) -508px -388px / 2946px 1694px no-repeat #0e2b2e;
 }
+
+/* Regions of presence, Figma 753:1725. Coordinates are inside the 16px card inset. */
+#sec-monitoring .pres-transport { position: absolute; z-index: 5; left: 1085px; top: 238px; width: 277px; display: flex; flex-direction: column; gap: 8px; }
+#sec-monitoring .mn-transport-card { position: relative; width: 277px; height: 184px; box-sizing: border-box; padding: 32px; border-radius: 32px; }
+#sec-monitoring .mn-transport-card:last-child { height: 204px; }
+#sec-monitoring .mn-transport-card > img { display: block; }
+#sec-monitoring .mn-transport-row { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+#sec-monitoring .mn-transport-value { font-size: 64px; font-weight: 300; line-height: 64px; color: var(--mn-text); }
+#sec-monitoring .mn-transport-label { font-size: 20px; font-weight: 300; line-height: 28px; white-space: pre-line; color: var(--mn-muted); }
+#sec-monitoring .mn-pres { height: 780px; max-height: 780px; }
+#sec-monitoring .mn-pres-areas-title { font-size: 20px; line-height: 28px; font-weight: 600; color: var(--mn-muted); }
+#sec-monitoring .mn-pres-name { margin-top: 0; }
+#sec-monitoring .pres-count { left: 133px; top: 888px; flex-direction: column; gap: 14px; }
+#sec-monitoring .pres-count .is-transport { width: 11.66px; height: 11.66px; background: #59d692; }
+#sec-monitoring .pres-hint { left: 134px; top: 972px; width: 1170px; }
+#sec-monitoring.pres-card-off .pres-transport { opacity: 0; pointer-events: none; }
+
+#sec-monitoring .mn-pres, #sec-monitoring .mn-transport-card { background: rgba(246,246,246,.1); -webkit-backdrop-filter: blur(70px); backdrop-filter: blur(70px); }
+#sec-monitoring .mn-pres-areas-title + .mn-pres-body { margin-top: 12px; }
+
+#sec-monitoring.on-presence #map-tools, #sec-monitoring.on-presence .mn-pres-close { display: none; }
+#sec-monitoring.on-presence #card { background: #0e2b2e; }
+#sec-monitoring.on-presence #card::after {
+  content: ''; position: absolute; z-index: 0; left: -508px; top: -388px;
+  width: 2946px; height: 1694px;
+  background: var(--mn-pres-underlay) center / 100% 100% no-repeat;
+  filter: blur(250px); pointer-events: none;
+}
+#sec-monitoring.on-presence #card::before { z-index: 1; }

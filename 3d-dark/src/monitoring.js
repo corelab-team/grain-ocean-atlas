@@ -576,11 +576,11 @@
     ctx.globalAlpha = 1;
   }
 
-  // Coordinates of the eight transport marks in Figma 703:722. They follow the map on pan/zoom.
-  var transportPixels = [[117,653],[118,702],[151,657],[172,662],[211,838],[293,764],[363,343],[391,338]];
+  // Coordinates of the seven port icons in Figma 753:1725. They follow the map on pan/zoom.
+  var transportPixels = [[206,842],[113,710],[120,653],[150,659],[171,657],[364,343],[391,335]];
   var transportImage = new Image();
   transportImage.onload = function () { need = true; };
-  transportImage.src = U.asset('assets/concept/svg/transport-point.svg');
+  transportImage.src = U.asset('assets/concept/svg/presence-anchor.svg');
   function drawTransportPoints() {
     if (!transportImage.complete || !transportImage.naturalWidth || !geo) return;
     var reference = VIEW.presence;
@@ -588,7 +588,7 @@
       var wx = geo.box[0] / 2 + (pixel[0] - 16 - reference.x) / reference.k;
       var wy = geo.box[1] / 2 + (pixel[1] - 16 - reference.y) / reference.k;
       var point = toCanvas(wx, wy);
-      ctx.drawImage(transportImage, (point[0] - 17) * dpr, (point[1] - 17) * dpr, 34 * dpr, 34 * dpr);
+      ctx.drawImage(transportImage, (point[0] - 8) * dpr, (point[1] - 8) * dpr, 16 * dpr, 16 * dpr);
     });
   }
 
@@ -1314,7 +1314,30 @@
     box.appendChild(wrap);
   }
 
+  function drawTransportSummary() {
+    var box = $('pres-transport');
+    if (!box) return;
+    box.textContent = '';
+    var icons = {
+      road: 'assets/concept/svg/presence-road.svg',
+      port: 'assets/concept/svg/presence-port.svg',
+      rail: 'assets/concept/svg/presence-rail.svg',
+      warehouse: 'assets/concept/svg/presence-warehouse.svg'
+    };
+    ((pres && pres.transportSummary) || []).forEach(function (item) {
+      var card = el('section', 'mn-panel mn-transport-card');
+      var icon = new Image();
+      icon.src = U.asset(icons[item.key]); icon.alt = ''; icon.width = icon.height = 40;
+      card.appendChild(icon);
+      var row = el('div', 'mn-transport-row');
+      row.appendChild(el('b', 'mn-transport-value', String(item.count)));
+      row.appendChild(el('span', 'mn-transport-label', item.label));
+      card.appendChild(row); box.appendChild(card);
+    });
+  }
+
   function drawPresence() {
+    drawTransportSummary();
     var box = $('card-pres');
     box.textContent = '';
     box.scrollTop = 0;
@@ -1326,14 +1349,10 @@
       return;
     }
     box.appendChild(el('h2', 'mn-pres-name', p.name));
-    // в кадре филиал и направления — один текстовый блок с пустыми строками
-    var lines = [];
-    if (p.branch) lines.push(p.branch);
     if (p.areas && p.areas.length) {
-      lines.push('', 'Основные направления', '');
-      p.areas.forEach(function (a) { lines.push('• ' + a); });
+      box.appendChild(el('strong', 'mn-pres-areas-title', 'Основные направления'));
+      box.appendChild(el('div', 'mn-pres-body', p.areas.map(function (area) { return '• ' + area; }).join('\n')));
     }
-    if (lines.length) box.appendChild(el('div', 'mn-pres-body', lines.join('\n')));
     if ((!p.areas || !p.areas.length) && p.todo) {
       box.appendChild(el('div', 'mn-pres-todo', p.todo));
     }
