@@ -5373,7 +5373,7 @@ body.mon-screen { background: #141d23; }
   z-index: 0;
   background: var(--mn-bg-region);
 }
-#sec-monitoring .mn-scene img {
+#sec-monitoring .mn-scene video {
   display: block;
   width: 100%;
   height: 100%;
@@ -6231,7 +6231,7 @@ body.mon-screen { background: #141d23; }
     <!-- ============ экран 24: выбранный регион ============ -->
     <section id="scr-region" class="mon-scr">
 
-      <div class="mn-scene"><img id="scene-img" alt="Зерно в лабораторном цилиндре"></div>
+      <div class="mn-scene"><video id="scene-video" muted loop playsinline preload="none" aria-label="Анимация зерна в лабораторном цилиндре"></video></div>
 
       <div id="reg-eyebrow" class="mn-eyebrow">Госмониторинг пшеницы · 2026</div>
       <h1 id="reg-title" class="mn-title-reg">Регион</h1>
@@ -7033,6 +7033,7 @@ body.mon-screen { background: #141d23; }
   ];
 
   var SCENE_IMG = 'assets/photos/concept/mon-region-scene.webp';
+  var SCENE_VIDEO = 'assets/video/grain-scan.mp4';
 
   /* Проекция контуров: Альберса, как в tools/make_regions.py. Точки
      лабораторий лежат в файле в градусах, здесь переводим их в те же
@@ -8285,8 +8286,19 @@ body.mon-screen { background: #141d23; }
 
   /* ------------------------------ переходы ------------------------------ */
 
+  function syncRegionVideo() {
+    var video = $('scene-video');
+    if (!video) return;
+    if (live && screen === 'region') {
+      if (!video.getAttribute('src')) video.src = U.asset(SCENE_VIDEO);
+      var playing = video.play();
+      if (playing && playing.catch) playing.catch(function () {});
+    } else video.pause();
+  }
+
   function show(name) {
     screen = name;
+    syncRegionVideo();
     if (global.Keyboard) global.Keyboard.close();
     $('scr-map').classList.toggle('is-on', name === 'map');
     $('scr-region').classList.toggle('is-on', name === 'region');
@@ -8566,7 +8578,8 @@ body.mon-screen { background: #141d23; }
   function boot(active) {
     live = active !== false;
     ctx = $('map').getContext('2d');
-    $('scene-img').src = U.asset(SCENE_IMG);
+    $('scene-video').poster = U.asset(SCENE_IMG);
+    $('scene-video').muted = true;
 
     return U.loadJSON('inline-config', 'config.json').then(function (cfg) {
       CFG = cfg || CFG;
@@ -8771,6 +8784,7 @@ body.mon-screen { background: #141d23; }
       },
       hide: function () {
         live = false;
+        syncRegionVideo();
         if (global.Keyboard) global.Keyboard.close();
         stopLoop();
       },
