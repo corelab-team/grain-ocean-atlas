@@ -4689,6 +4689,10 @@ body.story-screen { background: var(--sc-bg, #141D23); }
 }
 
 </style>
+<style>/* Short geographic tethers for export-country callouts. */
+#sec-globe .glabel-leaders { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+#sec-globe .glabel-leaders line { stroke: rgba(221,193,149,.65); stroke-width: 1; fill: none; }
+</style>
 </head>
 <body>
 
@@ -5392,8 +5396,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
 </script>
 <!-- src/globe.js -->
-<script>
-/* ===================================================================
+<script>/* ===================================================================
    Глобус: ночная Земля (снимки NASA: огни городов + затемнённая суша),
    золотые дуги маршрутов с бегущими частицами, подписи стран поверх
    холста, управление касанием (одним пальцем — вращение, двумя — зум).
@@ -6708,6 +6711,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   /* ----------------------------- подписи ----------------------------- */
 
   var labelHost = null;
+  var labelLeaders = null, labelLeadersBox = '';
   var labels = [];                      // подписи топ-стран
   var originLabel = null, selLabel = null;
   var labelFontsReady = !document.fonts || document.fonts.status === 'loaded';
@@ -6717,7 +6721,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     el.className = 'glabel' + (cls ? ' ' + cls : '');
     el.style.opacity = 0;
     labelHost.appendChild(el);
-    return { el: el, w: 0, h: 0, x: 0, y: 0, vis: false };
+    var link = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    link.style.opacity = 0; labelLeaders.appendChild(link);
+    return { el: el, link: link, w: 0, h: 0, x: 0, y: 0, vis: false };
   }
 
   function setLabelText(L, title, sub) {
@@ -6729,6 +6735,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function initLabels() {
     // ищем внутри обёртки раздела: в app.html рядом лежат ещё два раздела
     labelHost = U.scope('globe').querySelector('[id="glabels"]');
+    labelLeaders = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    labelLeaders.setAttribute('class', 'glabel-leaders');
+    labelLeaders.setAttribute('aria-hidden', 'true');
+    labelHost.appendChild(labelLeaders);
     originLabel = makeLabel('is-port');
     setLabelText(originLabel, cfg.origin.name, cfg.origin.note || '');
     selLabel = makeLabel('is-port');
@@ -6753,9 +6763,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     var w = canvas.clientWidth || 1920;
     var h = canvas.clientHeight || 1080;
     pTmp.copy(worldPos);
+    // Labels are anchored on the geographic surface, not the elevated route sprite.
+    var radius = pTmp.length();
+    if (radius) pTmp.multiplyScalar(R / radius);
     pNrm.copy(pTmp).normalize();
     var toCam = pTmp.clone().sub(camera.position).normalize();
-    out.front = -toCam.dot(pNrm) > 0.06;
+    out.front = -toCam.dot(pNrm) > 0.2;
     pTmp.project(camera);
     out.x = (pTmp.x * 0.5 + 0.5) * w;
     out.y = (-pTmp.y * 0.5 + 0.5) * h;
@@ -6764,8 +6777,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
 
   /** Прямоугольник подписи с учётом transform: translate(-50%, -140%). */
-  function labelRect(L, dy) {
-    return { l: L.x - L.w / 2, r: L.x + L.w / 2, t: L.y - L.h * 1.4 + dy, b: L.y - L.h * 0.4 + dy };
+  function labelRect(L, dy, dx) {
+    dx = dx || 0;
+    return { l: L.x + dx - L.w / 2, r: L.x + dx + L.w / 2, t: L.y - L.h * 1.4 + dy, b: L.y - L.h * 0.4 + dy };
   }
 
   function overlaps(a, b) {
@@ -6781,6 +6795,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   /** Возвращает true, если подпись показана; её рамка остаётся в L.rect. */
   function placeLabel(L, worldPos, alpha, isOrigin) {
     L.rect = null;
+    L.link.style.opacity = 0;
     if (!labelFontsReady || (document.fonts && document.fonts.status === 'loading')) {
       L.w = L.h = 0;
       L.el.style.opacity = 0;
@@ -6797,7 +6812,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (!L.w || !L.h) { L.el.style.opacity = 0; return false; }
     project(worldPos, L);
     if (isOrigin) { originPt.x = L.x; originPt.y = L.y; }
-    if (!L.front) { L.el.style.opacity = 0; return false; }
+    var W = canvas.clientWidth || 1920, H = canvas.clientHeight || 1080;
+    if (!L.front || L.x < 0 || L.x > W || L.y < 0 || L.y > H) { L.el.style.opacity = 0; return false; }
+    var anchorX = L.x, anchorY = L.y;
 
     // Подпись отодвигается от центра глобуса, а рядом с точкой отправления —
     // от неё самой: иначе подписи ближних стран тонут в узле маршрутов.
@@ -6816,30 +6833,30 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     var len = Math.hypot(ox, oy) || 1;
     L.x += ox / len * push;
     L.y += oy / len * push;
-    // Keep a collision lane until it is obstructed; moving the globe should
-    // not make nearby country labels jump back and forth or disappear.
-    var stride = L.h + 10;
-    // The origin must return to its geographic anchor after reaching the screen edge.
-    var lanes = [isOrigin || L.lane == null ? 0 : L.lane];
-    for (var distance = 0; distance <= labels.length + 2; distance++) {
-      if (lanes.indexOf(distance) < 0) lanes.push(distance);
-      if (distance && lanes.indexOf(-distance) < 0) lanes.push(-distance);
-    }
-    var dy = 0, ok = false;
-    for (var step = 0; step < lanes.length && !ok; step++) {
-      dy = lanes[step] * stride;
-      var rect = labelRect(L, dy);
-      ok = rect.t >= 0 && rect.b <= (canvas.clientHeight || 1080);
+    // Recompute bounded callouts from the geographic anchor, never from a saved lane.
+    var stride = Math.min(L.h + 10, 60), side = Math.min(L.w / 2 + 16, 80);
+    var offsets = isOrigin ? [[0, 0]] : [[0, 0], [0, -stride], [0, stride],
+      [-side, 0], [side, 0], [-side, -stride], [side, -stride], [-side, stride], [side, stride]];
+    var dx = 0, dy = 0, ok = false;
+    for (var step = 0; step < offsets.length && !ok; step++) {
+      dx = offsets[step][0]; dy = offsets[step][1];
+      var rect = labelRect(L, dy, dx);
+      ok = rect.l >= 0 && rect.r <= W && rect.t >= 0 && rect.b <= H;
       for (var i = 0; i < placed.length && ok; i++) {
         if (overlaps(rect, placed[i])) ok = false;
       }
-      if (ok) L.lane = lanes[step];
     }
     if (!ok) { L.el.style.opacity = 0; return false; }
-    L.rect = labelRect(L, dy);
+    L.rect = labelRect(L, dy, dx);
     placed.push(L.rect);
     L.el.style.transform = 'translate(-50%, -140%) translate(' +
-      L.x.toFixed(1) + 'px,' + (L.y + dy).toFixed(1) + 'px)';
+      (L.x + dx).toFixed(1) + 'px,' + (L.y + dy).toFixed(1) + 'px)';
+    if (!isOrigin) {
+      L.link.setAttribute('x1', anchorX.toFixed(1)); L.link.setAttribute('y1', anchorY.toFixed(1));
+      L.link.setAttribute('x2', U.clamp(anchorX, L.rect.l, L.rect.r).toFixed(1));
+      L.link.setAttribute('y2', U.clamp(anchorY, L.rect.t, L.rect.b).toFixed(1));
+      L.link.style.opacity = alpha;
+    }
     L.el.style.opacity = alpha;
     return true;
   }
@@ -6848,6 +6865,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
   function updateLabels() {
     placed.length = 0;
+    var box = '0 0 ' + (canvas.clientWidth || 1920) + ' ' + (canvas.clientHeight || 1080);
+    if (box !== labelLeadersBox) { labelLeaders.setAttribute('viewBox', box); labelLeadersBox = box; }
     world.updateMatrixWorld();
     project(zeroV, centre);
 
@@ -6859,13 +6878,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       tmpV.copy(r.dest).multiplyScalar(1.004).applyMatrix4(world.matrixWorld);
       placeLabel(selLabel, tmpV, 1);
     } else {
-      selLabel.el.style.opacity = 0;
+      selLabel.el.style.opacity = 0; selLabel.link.style.opacity = 0;
     }
 
     for (var k in topShown) delete topShown[k];
     for (var i = 0; i < labels.length; i++) {
       var L = labels[i];
-      if (selected) { L.el.style.opacity = 0; L.rect = null; continue; }
+      if (selected) { L.el.style.opacity = 0; L.link.style.opacity = 0; L.rect = null; continue; }
       tmpV.copy(L.pos).applyMatrix4(world.matrixWorld);
       if (placeLabel(L, tmpV, 1) && L.iso) topShown[L.iso] = 1;
     }
@@ -6873,7 +6892,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
 
   function rebuildLabels(items) {
-    for (var i = 0; i < labels.length; i++) labelHost.removeChild(labels[i].el);
+    for (var i = 0; i < labels.length; i++) { labelHost.removeChild(labels[i].el); labelLeaders.removeChild(labels[i].link); }
     labels = [];
     var top = items.slice(0, 8);       // items уже отсортированы по убыванию
     for (var j = 0; j < top.length; j++) {
@@ -7012,11 +7031,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     for (var i = 0; i < nameLabels.length; i++) {
       var L = nameLabels[i], op = 0;
       L.rect = null;
-      nv.copy(L.pos).applyMatrix4(m);
+      nv.copy(L.pos).applyMatrix4(m).normalize().multiplyScalar(R);
       // косинус между нормалью в точке и направлением на камеру:
       // 1 — точка смотрит прямо на нас, 0 — на самом краю диска
       var tx = cam.x - nv.x, ty = cam.y - nv.y, tz = cam.z - nv.z;
-      var c = (nv.x * tx + nv.y * ty + nv.z * tz) / (Math.sqrt(tx * tx + ty * ty + tz * tz) * 1.004);
+      var c = (nv.x * tx + nv.y * ty + nv.z * tz) / (Math.sqrt(tx * tx + ty * ty + tz * tz) * R);
       if (c > 0.05) {
         nv.project(camera);
         L.x = (nv.x * 0.5 + 0.5) * W;
@@ -7842,7 +7861,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     // для отладки: видимые названия стран и их рамки на экране
     _names: function () {
       return (nameLabels || []).filter(function (L) { return L.op > 0; }).map(function (L) {
-        return { t: L.el.textContent, op: L.op, imp: !!L.imp,
+        return { t: L.el.textContent, iso: L.iso, x: L.x, y: L.y, op: L.op, imp: !!L.imp,
                  r: L.rect && [Math.round(L.rect.l), Math.round(L.rect.t), Math.round(L.rect.r), Math.round(L.rect.b)] };
       });
     },
@@ -7898,7 +7917,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     }
   };
 })(window);
-
 </script>
 <!-- src/ui.js -->
 <script>
