@@ -6184,6 +6184,17 @@ body.mon-screen { background: #141d23; }
 }
 
 </style>
+<style>
+/* Three national totals; preserve the position and height of the region ranking. */
+#sec-monitoring .mn-col .mn-total { height: 367px; flex: none; padding: 24px; gap: 12px; }
+#sec-monitoring .mn-col .mn-total .mn-num { font-size: 46px; line-height: 1.1; margin-top: 0; }
+#sec-monitoring .mn-col .mn-total .mn-note { font-size: 14px; line-height: 20px; margin-top: 0; }
+#sec-monitoring .mn-col .mn-total .mn-slot + .mn-slot { margin-top: 8px; }
+#sec-monitoring .mn-col .mn-gost { height: 82px; flex: none; padding: 12px 24px; }
+#sec-monitoring .mn-col .mn-gost .mn-num { font-size: 36px; line-height: 36px; margin-top: 0; }
+#sec-monitoring .mn-col .mn-gost .mn-note { font-size: 14px; line-height: 20px; margin-top: 2px; }
+#sec-monitoring .mn-total-editor-panel { max-height: calc(100% - 48px); overflow-y: auto; }
+</style>
 </head>
 <body class="mon-screen">
 
@@ -6890,8 +6901,7 @@ body.mon-screen { background: #141d23; }
 
 </script>
 <!-- src/monitoring.js -->
-<script>
-/* ===================================================================
+<script>/* ===================================================================
    Раздел 09 — «Мониторинг зерна РФ».
 
    Раздел единого приложения app.html (обёртка #sec-monitoring); та же
@@ -7646,6 +7656,7 @@ body.mon-screen { background: #141d23; }
    * Процент ГОСТ в соседней плашке тоже общий — взвешен по
    * обследованному объёму (bothCompliance).
    */
+  var TOTAL_HARVEST_2026 = 145455;
   var TOTALS_STORAGE_KEY = 'grainAtlas.monitoringTotals.v1';
   var totalsEditor = null;
   var totalsEditorFocus = null;
@@ -7657,10 +7668,14 @@ body.mon-screen { background: #141d23; }
     } catch (e) { return {}; }
   }
 
+  function defaultTotal(field) {
+    return field === 'harvestAll' ? (year === 2026 ? TOTAL_HARVEST_2026 : null) : bothSum(field);
+  }
+
   function displayedTotal(field) {
     var saved = year === 2026 ? readTotalsOverrides()['2026'] : null;
     var value = saved && saved[field];
-    return typeof value === 'number' && isFinite(value) && value >= 0 ? value : bothSum(field);
+    return typeof value === 'number' && isFinite(value) && value >= 0 ? value : defaultTotal(field);
   }
 
   function closeTotalsEditor() {
@@ -7687,9 +7702,11 @@ body.mon-screen { background: #141d23; }
     form.setAttribute('aria-labelledby', 'mn-totals-editor-title');
     var heading = el('h2', null, 'Всего по России · ' + year);
     heading.id = 'mn-totals-editor-title'; form.appendChild(heading);
-    form.appendChild(el('p', null, 'Изменяются только две цифры в общей плашке. Значения сохраняются на этом устройстве.'));
+    form.appendChild(el('p', null, 'Изменяются только три цифры в общей плашке. Значения сохраняются на этом устройстве.'));
     var fields = {};
-    [['gross', 'Валовой сбор, тыс. т'], ['surveyed', 'Обследовано зерна, тыс. т']].forEach(function (item) {
+    [['harvestAll', 'Зерновые, зернобобовые и масличные — валовой сбор, тыс. т'],
+     ['gross', 'Мягкая и твёрдая пшеница — валовой сбор, тыс. т'],
+     ['surveyed', 'Обследовано подведомственными учреждениями Россельхознадзора, тыс. т']].forEach(function (item) {
       var label = el('label', 'mn-total-editor-field', item[1]);
       var input = document.createElement('input');
       input.type = 'text'; input.inputMode = 'decimal'; input.autocomplete = 'off';
@@ -7711,8 +7728,10 @@ body.mon-screen { background: #141d23; }
         if (Object.keys(all).length) global.localStorage.setItem(TOTALS_STORAGE_KEY, JSON.stringify(all));
         else global.localStorage.removeItem(TOTALS_STORAGE_KEY);
       } catch (e) { error.textContent = 'Не удалось сбросить значения. Хранилище браузера недоступно.'; return; }
-      fields.gross.value = String(bothSum('gross')).replace('.', ',');
-      fields.surveyed.value = String(bothSum('surveyed')).replace('.', ',');
+      Object.keys(fields).forEach(function (key) {
+        var value = defaultTotal(key);
+        fields[key].value = value == null ? '' : String(value).replace('.', ',');
+      });
       error.textContent = ''; drawTotal(); fields.gross.focus(); fields.gross.select();
     });
     action('Отмена', 'button', closeTotalsEditor);
@@ -7720,13 +7739,17 @@ body.mon-screen { background: #141d23; }
     form.appendChild(actions); overlay.appendChild(form);
     form.addEventListener('submit', function (event) {
       event.preventDefault();
-      var gross = parseTotalInput(fields.gross.value), surveyed = parseTotalInput(fields.surveyed.value);
-      if (gross === null || surveyed === null) {
-        error.textContent = 'Введите два неотрицательных числа. Можно использовать запятую или точку.';
-        (gross === null ? fields.gross : fields.surveyed).focus(); return;
+      var values = {}, invalid = null;
+      Object.keys(fields).forEach(function (key) {
+        values[key] = parseTotalInput(fields[key].value);
+        if (values[key] === null && invalid === null) invalid = fields[key];
+      });
+      if (invalid) {
+        error.textContent = 'Введите три неотрицательных числа. Можно использовать запятую или точку.';
+        invalid.focus(); return;
       }
       try {
-        var all = readTotalsOverrides(); all[editingYear] = { gross: gross, surveyed: surveyed };
+        var all = readTotalsOverrides(); all[editingYear] = values;
         global.localStorage.setItem(TOTALS_STORAGE_KEY, JSON.stringify(all));
       } catch (e) { error.textContent = 'Не удалось сохранить значения. Хранилище браузера недоступно.'; return; }
       drawTotal(); closeTotalsEditor();
@@ -7749,12 +7772,14 @@ body.mon-screen { background: #141d23; }
   function drawTotal() {
     var box = $('total-body');
     box.textContent = '';
+    if (year === 2026) bigNum(el2(box), fmt1(displayedTotal('harvestAll')), 'тыс. т',
+      'общий валовой сбор зерновых, зернобобовых и масличных');
     bigNum(el2(box), fmt1(displayedTotal('gross')), 'тыс. т',
       'общий валовой сбор мягкой и твёрдой пшеницы');
     // слово «урожай» из подписи убрали (правка заказчика 29.09): просят,
     // чтобы мониторинг читался сам по себе за год, без отсылки к урожаю
     bigNum(el2(box), fmt1(displayedTotal('surveyed')), 'тыс. т',
-      'обследовано зерна за ' + year + ' год');
+      'обследовано подведомственными учреждениями Россельхознадзора');
     bigNum($('gost-body'), dec1(bothCompliance()), '%',
       'соответствует требованиям ГОСТ');
   }
@@ -8943,7 +8968,6 @@ body.mon-screen { background: #141d23; }
     boot();
   }
 })(window);
-
 </script>
 </body>
 </html>
