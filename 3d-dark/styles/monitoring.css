@@ -1453,3 +1453,13 @@ body.mon-screen { background: #141d23; }
 #sec-monitoring .mn-total-editor-actions { display: flex; gap: 12px; margin-top: 16px; }
 #sec-monitoring .mn-total-editor-actions .mn-btn { position: static; flex: 1; width: auto; height: 72px; font-size: 22px; }
 #sec-monitoring .mn-total-editor-actions .is-primary { background: #855812; }
+
+/* Three national totals; preserve the position and height of the region ranking. */
+#sec-monitoring .mn-col .mn-total { height: 367px; flex: none; padding: 24px; gap: 12px; }
+#sec-monitoring .mn-col .mn-total .mn-num { font-size: 46px; line-height: 1.1; margin-top: 0; }
+#sec-monitoring .mn-col .mn-total .mn-note { font-size: 14px; line-height: 20px; margin-top: 0; }
+#sec-monitoring .mn-col .mn-total .mn-slot + .mn-slot { margin-top: 8px; }
+#sec-monitoring .mn-col .mn-gost { height: 82px; flex: none; padding: 12px 24px; }
+#sec-monitoring .mn-col .mn-gost .mn-num { font-size: 36px; line-height: 36px; margin-top: 0; }
+#sec-monitoring .mn-col .mn-gost .mn-note { font-size: 14px; line-height: 20px; margin-top: 2px; }
+#sec-monitoring .mn-total-editor-panel { max-height: calc(100% - 48px); overflow-y: auto; }
