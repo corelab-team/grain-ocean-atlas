@@ -6819,7 +6819,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     // Keep a collision lane until it is obstructed; moving the globe should
     // not make nearby country labels jump back and forth or disappear.
     var stride = L.h + 10;
-    var lanes = [L.lane == null ? 0 : L.lane];
+    // The origin must return to its geographic anchor after reaching the screen edge.
+    var lanes = [isOrigin || L.lane == null ? 0 : L.lane];
     for (var distance = 0; distance <= labels.length + 2; distance++) {
       if (lanes.indexOf(distance) < 0) lanes.push(distance);
       if (distance && lanes.indexOf(-distance) < 0) lanes.push(-distance);
