@@ -2476,3 +2476,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe #panel-country.is-no-deliveries .metric-unit,
 #sec-globe #panel-country.is-no-deliveries .metric-caption,
 #sec-globe #panel-country.is-no-deliveries .rank-row { display: none; }
+
+/* Short geographic tethers for export-country callouts. */
+#sec-globe .glabel-leaders { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
+#sec-globe .glabel-leaders line { stroke: rgba(221,193,149,.65); stroke-width: 1; fill: none; }
