@@ -1721,12 +1721,25 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   color: var(--text);
 }
 
-/* «Топ-10 направлений»: плашка с пятью строками внутри */
-#sec-globe #panel-top5 {
+/* Топ-10 и остальные страны образуют одну область прокрутки. Поэтому
+   колесо, тачпад и свайп работают по всей высоте колонки, включая топ-10. */
+#sec-globe .country-scroll {
   position: absolute;
   left: 0;
   top: 90px;
-  right: auto;
+  width: 385px;
+  height: 668px;
+  padding: 0 12px 0 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* «Топ-10 направлений»: плашка с десятью строками внутри */
+#sec-globe #panel-top5 {
+  position: static;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1812,34 +1825,27 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe .medal.m2 { color: #DADADA; }
 #sec-globe .medal.m3 { color: #CE8342; }
 
-/* Список остальных стран. Ширина 385 = 373 строки + 4 зазор + 8 полоса
-   прокрутки: полоса встаёт ровно туда, где она нарисована в кадре. */
+/* Список остальных стран продолжает топ-10 внутри общего контейнера. */
 #sec-globe.is-map #country-list {
-  left: 0;
-  right: auto;
-  top: 654px;
-  bottom: auto;
+  position: static;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  width: 385px;
-  height: 104px;
-  /* 385 = 373 строка + 4 зазор + 8 полоса прокрутки (она рисуется
-     отдельным элементом .sb поверх, см. ниже) */
-  padding: 0 12px 0 0;
+  width: 373px;
+  height: auto;
+  margin-top: 4px;
+  padding: 0;
   box-sizing: border-box;
-  overflow-y: auto;
-  /* scrollbar-width не ставим: в Chrome оно перебивает ::-webkit-scrollbar,
-     и вместо полосы из кадра получается системная (на macOS невидимая) */
+  overflow: visible;
 }
 /* Полосы прокрутки рисуем сами: нативную Chrome на стенде либо прячет
    (overlay-полосы macOS), либо рисует по-своему. Свои элементы создаёт
    src/ui.js (scrollbar), места и размеры — из кадра:
    список стран  — (441; 348) 8x668, лента новостей — (1836; 446) 8x415.
    Дорожка rgba(100,140,27,.15), бегунок #43744B, радиус 30. */
-#sec-globe #country-list,
+#sec-globe .country-scroll,
 #sec-globe .news-list { scrollbar-width: none; }
-#sec-globe #country-list::-webkit-scrollbar,
+#sec-globe .country-scroll::-webkit-scrollbar,
 #sec-globe .news-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 #sec-globe .sb {
@@ -1869,10 +1875,10 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe:not(.is-country) #sb-products { display: none; }
 #sec-globe.is-map.is-nonews #sb-news { display: none; }
 
-/* Пока в поиске что-то набрано, «Топ-5» уходит: его место занимает
+/* Пока в поиске что-то набрано, «Топ-10» уходит: его место занимает
    список найденных стран (класс ставит src/ui.js). */
 #sec-globe.is-searching #panel-top5 { display: none; }
-#sec-globe.is-searching.is-map #country-list { top: 90px; height: 668px; }
+#sec-globe.is-searching.is-map #country-list { margin-top: 0; }
 
 /* ---- правая колонка: объём за год и лента новостей ---- */
 
@@ -4770,12 +4776,14 @@ body.story-screen { background: var(--sc-bg, #141D23); }
         <input id="search" type="search" placeholder="Поиск по странам" autocomplete="off" inputmode="none" data-osk>
       </div>
 
-      <section id="panel-top5" class="panel top5-box">
-        <div class="section-title">Топ-10 направлений</div>
-        <div id="top5-list" class="top5-list"></div>
-      </section>
+      <div id="country-scroll" class="country-scroll">
+        <section id="panel-top5" class="panel top5-box">
+          <div class="section-title">Топ-10 направлений</div>
+          <div id="top5-list" class="top5-list"></div>
+        </section>
 
-      <div id="country-list" class="country-list"></div>
+        <div id="country-list" class="country-list"></div>
+      </div>
     </section>
 
     <!-- ========== кадр «Карта»: правая колонка ========== -->
@@ -7949,6 +7957,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     handlers = h;
     els = {
       search: $('search'),
+      countryScroll: $('country-scroll'),
       list: $('country-list'),
       top5: $('top5-list'),
       years: $('years'),
@@ -7998,7 +8007,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     $('reset-view-icon').src = U.asset('assets/concept/svg/globe-reset.svg');
     $('reset-view').addEventListener('click', function () { handlers.onResetView(); });
 
-    bindScrollbar(els.list, $('sb-countries'));
+    bindScrollbar(els.countryScroll, $('sb-countries'));
     bindScrollbar(els.news, $('sb-news'));
     bindScrollbar(els.countryProducts, $('sb-products'));
   }
@@ -8241,7 +8250,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     els.search.value = text || '';
     listState.filter = (text || '').trim().toLowerCase();
     renderList();
-    els.list.scrollTop = 0;
+    els.countryScroll.scrollTop = 0;
   }
 
   /* ------------------------------ сводка ------------------------------ */

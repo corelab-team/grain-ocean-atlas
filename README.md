@@ -4,7 +4,7 @@
 
 Сборка ресурсов: `python3 3d-dark/tools/build_export_only.py`. Затем на Windows: `pnpm install --frozen-lockfile`, `pnpm test`, `pnpm pack:win`, `pnpm test:electron`, `pnpm dist:win`.
 
-Результат — `release/GrainExportAtlas-1.0.9-win-x64-Setup.exe`. Устанавливается рядом с полной версией, ярлык «Маршруты экспорта». Выход — Ctrl+Shift+Q или Alt+F4. Установщик без цифровой подписи.
+Результат — `release/GrainExportAtlas-1.0.10-win-x64-Setup.exe`. Устанавливается рядом с полной версией, ярлык «Маршруты экспорта». Выход — Ctrl+Shift+Q или Alt+F4. Установщик без цифровой подписи.
 
 Ниже сохранено описание исходного проекта.
 
