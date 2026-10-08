@@ -1331,7 +1331,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
    Кадров три, класс состояния ставит src/ui.js на обёртку #sec-globe:
 
      is-intro     вход в раздел: два круглых слота и цифры за два года
-     is-map       карта: поиск, топ-5, список стран, новости, годы
+     is-map       карта: поиск, топ-10, список стран, новости, годы
      is-country   выбранная страна: объём, место, продукция
 
    Правила написаны на обёртку раздела, а не на тему: синий прототип
@@ -1650,7 +1650,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 }
 
 /* =========================== кадр «Карта» ===========================
-   Левая колонка: поиск (385x75), «Топ-5 направлений» и список остальных
+   Левая колонка: поиск (385x75), «Топ-10 направлений» и список остальных
    стран; всё вместе — от 258 до 1016 по вертикали. */
 
 #sec-globe #panel-left {
@@ -1714,7 +1714,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   color: var(--text);
 }
 
-/* «Топ-5 направлений»: плашка с пятью строками внутри */
+/* «Топ-10 направлений»: плашка с десятью строками внутри */
 #sec-globe #panel-top5 {
   position: absolute;
   left: 0;
@@ -1785,11 +1785,11 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 }
 #sec-globe .country-row .vl { display: none; }
 
-/* Медаль у строк «Топ-5» (макет от 25.09): значок 18x21 в 2 px от края
+/* Медаль у строк «Топ-10» (макет от 25.09): значок 18x21 в 2 px от края
    строки, название начинается с 126 px кадра, как в макете. Цвета сняты
    с макета: золото, серебро, бронза и приглушённый зеленовато-серый. */
 #sec-globe .top5-list .country-row { justify-content: flex-start; gap: 0; }
-/* в макете 25.09 название в строке «Топ-5» стоит по центру медали —
+/* в макете 25.09 название в строке «Топ-10» стоит по центру медали —
    подъём на 3 px, нужный строкам списка, здесь не нужен */
 #sec-globe .top5-list .country-row .nm { top: 0; }
 #sec-globe .medal {
@@ -1810,13 +1810,13 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe.is-map #country-list {
   left: 0;
   right: auto;
-  top: 404px;
+  top: 654px;
   bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 385px;
-  height: 354px;
+  height: 104px;
   /* 385 = 373 строка + 4 зазор + 8 полоса прокрутки (она рисуется
      отдельным элементом .sb поверх, см. ниже) */
   padding: 0 12px 0 0;
@@ -1862,7 +1862,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe:not(.is-country) #sb-products { display: none; }
 #sec-globe.is-map.is-nonews #sb-news { display: none; }
 
-/* Пока в поиске что-то набрано, «Топ-5» уходит: его место занимает
+/* Пока в поиске что-то набрано, «Топ-10» уходит: его место занимает
    список найденных стран (класс ставит src/ui.js). */
 #sec-globe.is-searching #panel-top5 { display: none; }
 #sec-globe.is-searching.is-map #country-list { top: 90px; height: 668px; }
