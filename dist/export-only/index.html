@@ -1657,7 +1657,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 }
 
 /* =========================== кадр «Карта» ===========================
-   Левая колонка: поиск (385x75), «Топ-5 направлений» и список остальных
+   Левая колонка: поиск (385x75), «Топ-10 направлений» и список остальных
    стран; всё вместе — от 258 до 1016 по вертикали. */
 
 #sec-globe #panel-left {
@@ -1721,7 +1721,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   color: var(--text);
 }
 
-/* «Топ-5 направлений»: плашка с пятью строками внутри */
+/* «Топ-10 направлений»: плашка с пятью строками внутри */
 #sec-globe #panel-top5 {
   position: absolute;
   left: 0;
@@ -1817,13 +1817,13 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe.is-map #country-list {
   left: 0;
   right: auto;
-  top: 404px;
+  top: 654px;
   bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 385px;
-  height: 354px;
+  height: 104px;
   /* 385 = 373 строка + 4 зазор + 8 полоса прокрутки (она рисуется
      отдельным элементом .sb поверх, см. ниже) */
   padding: 0 12px 0 0;
@@ -4762,7 +4762,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
     </section>
 
     <!-- ========== кадр «Карта»: левая колонка ==========
-         Поиск, «Топ-5 направлений» и список остальных стран. -->
+         Поиск, «Топ-10 направлений» и список остальных стран. -->
     <section id="panel-left" class="panel">
       <div class="search">
         <!-- значок из кадра 25-globe-map (тот же, что в поиске по регионам) -->
@@ -4771,7 +4771,7 @@ body.story-screen { background: var(--sc-bg, #141D23); }
       </div>
 
       <section id="panel-top5" class="panel top5-box">
-        <div class="section-title">Топ-5 направлений</div>
+        <div class="section-title">Топ-10 направлений</div>
         <div id="top5-list" class="top5-list"></div>
       </section>
 
@@ -7919,14 +7919,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 })(window);
 </script>
 <!-- src/ui.js -->
-<script>
-/* ===================================================================
+<script>/* ===================================================================
    Раздел «Маршруты экспорта»: отрисовка панелей.
 
    Три кадра (класс состояния ставится на обёртку #sec-globe):
 
      is-intro     вход в раздел: два глобуса-слота и цифры за два года
-     is-map       карта: поиск, топ-5, список стран, новости, годы
+     is-map       карта: поиск, топ-10, список стран, новости, годы
      is-country   выбранная страна: объём, место, продукция
 
    Состав экранов пересобран по макетам фигмы (docs/mockup/concept-18-09),
@@ -7944,6 +7943,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   var els = {};
   var handlers = {};
   var listState = { items: [], filter: '' };
+  var TOP_COUNTRY_COUNT = 10;
 
   function init(h) {
     handlers = h;
@@ -8170,19 +8170,19 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
 
   /* --------------------------- список стран ---------------------------
-     Пять крупнейших направлений — в панели «Топ-5», остальные страны
+     Десять крупнейших направлений — в панели «Топ-10», остальные страны
      списком по алфавиту под ней. Поиск ищет по всем странам и на время
-     убирает «Топ-5»: его место занимает список. */
+     убирает «Топ-10»: его место занимает список. */
 
   function setList(items) {
     listState.items = items;
-    renderTop5(items.slice(0, 5));
+    renderTop10(items.slice(0, TOP_COUNTRY_COUNT));
     renderList();
   }
 
   /*
-   * Медаль перед названием в «Топ-5» (макет от 25 сентября): лента-«галочка»
-   * и круг под ней. 1–3 место — золото, серебро, бронза, 4–5 — приглушённый
+   * Медаль перед названием в «Топ-10» (макет от 25 сентября): лента-«галочка»
+   * и круг под ней. 1–3 место — золото, серебро, бронза, 4–10 — приглушённый
    * зеленовато-серый. Рисунок один, цвет задаёт класс (styles/app.css,
    * .medal.m1…m5), поэтому иконка вшита прямо сюда, без файлов.
    */
@@ -8191,12 +8191,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     '<path fill-rule="evenodd" d="M0 0h18l-6.6 9.4H6.6zM5 2.2h8L9 7.4z"/>' +
     '<circle cx="9" cy="15" r="6"/></svg>';
 
-  function renderTop5(items) {
+  function renderTop10(items) {
     els.top5.innerHTML = '';
     items.forEach(function (it, i) { els.top5.appendChild(row(it, i + 1)); });
   }
 
-  /** place — место в «Топ-5» (1…5): у такой строки перед названием медаль. */
+  /** place — место в «Топ-10» (1…10): у такой строки перед названием медаль. */
   function row(it, place) {
     var n = U.el('div', 'country-row');
     if (place) {
@@ -8220,7 +8220,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       ? listState.items.filter(function (it) {
           return it.name.toLowerCase().indexOf(f) >= 0;
         })
-      : listState.items.slice(5);          // первые пять уже стоят в «Топ-5»
+      : listState.items.slice(TOP_COUNTRY_COUNT);          // первые десять уже стоят в «Топ-10»
 
     items = items.slice().sort(byName);
 
@@ -8369,7 +8369,6 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     hideLoading: hideLoading
   };
 })(window);
-
 </script>
 <!-- src/app.js -->
 <script>

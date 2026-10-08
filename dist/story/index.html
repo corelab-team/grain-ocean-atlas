@@ -1663,7 +1663,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 }
 
 /* =========================== кадр «Карта» ===========================
-   Левая колонка: поиск (385x75), «Топ-5 направлений» и список остальных
+   Левая колонка: поиск (385x75), «Топ-10 направлений» и список остальных
    стран; всё вместе — от 258 до 1016 по вертикали. */
 
 #sec-globe #panel-left {
@@ -1727,7 +1727,7 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
   color: var(--text);
 }
 
-/* «Топ-5 направлений»: плашка с пятью строками внутри */
+/* «Топ-10 направлений»: плашка с пятью строками внутри */
 #sec-globe #panel-top5 {
   position: absolute;
   left: 0;
@@ -1823,13 +1823,13 @@ html.theme-green #touch-hint.is-on { opacity: 1; }
 #sec-globe.is-map #country-list {
   left: 0;
   right: auto;
-  top: 404px;
+  top: 654px;
   bottom: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
   width: 385px;
-  height: 354px;
+  height: 104px;
   /* 385 = 373 строка + 4 зазор + 8 полоса прокрутки (она рисуется
      отдельным элементом .sb поверх, см. ниже) */
   padding: 0 12px 0 0;
