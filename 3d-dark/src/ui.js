@@ -28,6 +28,7 @@
     handlers = h;
     els = {
       search: $('search'),
+      countryScroll: $('country-scroll'),
       list: $('country-list'),
       top5: $('top5-list'),
       years: $('years'),
@@ -77,7 +78,7 @@
     $('reset-view-icon').src = U.asset('assets/concept/svg/globe-reset.svg');
     $('reset-view').addEventListener('click', function () { handlers.onResetView(); });
 
-    bindScrollbar(els.list, $('sb-countries'));
+    bindScrollbar(els.countryScroll, $('sb-countries'));
     bindScrollbar(els.news, $('sb-news'));
     bindScrollbar(els.countryProducts, $('sb-products'));
   }
@@ -320,7 +321,7 @@
     els.search.value = text || '';
     listState.filter = (text || '').trim().toLowerCase();
     renderList();
-    els.list.scrollTop = 0;
+    els.countryScroll.scrollTop = 0;
   }
 
   /* ------------------------------ сводка ------------------------------ */
